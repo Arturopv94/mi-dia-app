@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Día</title>
+<!-- Mi Dia v2.0 - rediseño: sidebar, master-detail de proyectos, tema claro/oscuro -->
+
+<style>
+:root{
+  --bg:#FAF9F6; --bg-sidebar:#F3F1EC; --surface:#FFFFFF; --surface-2:#F1F0EC;
+  --ink:#2B2B33; --ink-soft:#6B6B76; --ink-faint:#9C9CA6;
+  --line:#E8E6DF; --line-strong:#D6D3CA;
+  --accent:#7C6FF0; --accent-strong:#6558E0; --accent-soft:#F0EEFF;
+  --red:#D9534A; --red-soft:#FBEBEA;
+  --amber:#C08A0B; --amber-soft:#FAF3E0;
+  --green:#2E9E76; --green-soft:#E6F4EE;
+  --shadow-1:0 1px 3px rgba(43,43,51,.06);
+  --shadow-2:0 4px 16px rgba(43,43,51,.08);
+  --shadow-modal:0 12px 40px rgba(43,43,51,.16);
+  --overlay:rgba(23,23,28,.45);
+  --font:'Segoe UI Variable Text','Segoe UI',system-ui,-apple-system,'Inter',sans-serif;
+  --r-sm:8px; --r-md:12px; --r-lg:14px; --r-xl:18px;
+}
+[data-theme="dark"]{
+  --bg:#17171C; --bg-sidebar:#131318; --surface:#1F1F26; --surface-2:#2A2A33;
+  --ink:#E8E7F0; --ink-soft:#A3A2B0; --ink-faint:#6E6D7A;
+  --line:#2E2E38; --line-strong:#43424F;
+  --accent:#948AF5; --accent-strong:#A79EF8; --accent-soft:#2A2740;
+  --red:#E5766D; --red-soft:#3A2523;
+  --amber:#D9A94A; --amber-soft:#363019;
+  --green:#52B892; --green-soft:#1D3229;
+  --shadow-1:0 1px 3px rgba(0,0,0,.30);
+  --shadow-2:0 4px 16px rgba(0,0,0,.36);
+  --shadow-modal:0 12px 40px rgba(0,0,0,.55);
+  --overlay:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font);
+  font-size:17px; line-height:1.5;
+  transition:background-color 150ms, color 150ms;
+}
+button{font-family:var(--font);}
+svg.ic{width:20px;height:20px;stroke:currentColor;stroke-width:1.75;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+svg.ic.sm{width:16px;height:16px;}
+svg.ic.lg{width:32px;height:32px;}
+
+/* ============ LAYOUT ============ */
+.app{display:flex; height:100vh; overflow:hidden;}
+.sidebar{
+  width:240px; min-width:240px; background:var(--bg-sidebar);
+  border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px 14px;
+}
+.main{flex:1; display:flex; flex-direction:column; overflow:hidden;}
+.capturebar{padding:16px 24px 12px; border-bottom:1px solid var(--line); background:var(--bg);}
+.viewport{flex:1; overflow-y:auto; padding:24px;}
+.content{max-width:760px; margin:0 auto; animation:fadein 120ms ease-out;}
+.content.wide{max-width:1040px;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important;} }
+
+/* ============ SIDEBAR ============ */
+.sb-head{display:flex; align-items:center; justify-content:space-between; padding:0 10px 14px;}
+.sb-title{font-size:19px; font-weight:800;}
+.theme-btn{width:34px;height:34px;border:none;background:transparent;border-radius:10px;cursor:pointer;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;}
+.theme-btn:hover{background:var(--surface-2);color:var(--ink);}
+.nav-item{
+  display:flex; align-items:center; gap:11px; width:100%; border:none; background:transparent;
+  padding:10px 12px; border-radius:var(--r-md); cursor:pointer; font-size:15px; font-weight:600;
+  color:var(--ink-soft); margin-bottom:2px; position:relative; text-align:left; transition:background 150ms,color 150ms;
+}
+.nav-item:hover{background:var(--surface-2); color:var(--ink);}
+.nav-item.active{background:var(--accent-soft); color:var(--accent);}
+.nav-item.active::before{content:""; position:absolute; left:-12px; top:8px; bottom:8px; width:3px; border-radius:2px; background:var(--accent);}
+.nav-item .lbl{flex:1;}
+.nav-badge{font-size:12.5px; font-weight:700; background:var(--surface-2); color:var(--ink-soft); border-radius:999px; padding:1px 8px; transition:background 150ms,color 150ms;}
+.nav-item.active .nav-badge{background:var(--surface); color:var(--accent);}
+.nav-badge.warn{background:var(--amber-soft); color:var(--amber);}
+.nav-badge.over{background:var(--red-soft); color:var(--red);}
+.sb-sep{height:1px; background:var(--line); margin:10px 8px;}
+.sb-spacer{flex:1;}
+.sb-bottom{display:flex; flex-direction:column; gap:6px; padding:0 4px;}
+.closeday-btn{
+  display:flex; align-items:center; gap:10px; border:1px solid var(--line); background:var(--surface);
+  padding:10px 14px; border-radius:var(--r-md); cursor:pointer; font-size:15px; font-weight:600; color:var(--ink);
+}
+.closeday-btn:hover{border-color:var(--line-strong); box-shadow:var(--shadow-1);}
+.save-status{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); padding:6px 6px 0;}
+.save-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);}
+.save-dot.ok{background:var(--green);} .save-dot.dirty{background:var(--amber);}
+.sb-mini-btn{border:none;background:transparent;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:5px 6px;border-radius:8px;display:flex;align-items:center;gap:7px;text-align:left;}
+.sb-mini-btn:hover{background:var(--surface-2);color:var(--ink);}
+.sb-save-btn{border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;padding:8px 12px;border-radius:10px;display:flex;align-items:center;gap:8px;justify-content:center;}
+.sb-save-btn:hover{background:var(--accent-strong);}
+
+/* ============ CAPTURA ============ */
+.capture-row{display:flex; gap:10px; max-width:760px; margin:0 auto; flex-wrap:wrap;}
+.capture-row #captureInput{min-width:200px;}
+#captureInput{
+  flex:1; font-size:18px; padding:12px 18px; border:2px solid var(--line);
+  border-radius:var(--r-lg); background:var(--surface); color:var(--ink); outline:none; transition:border-color 150ms;
+}
+#captureInput::placeholder{color:var(--ink-faint);}
+#captureInput:focus{border-color:var(--accent);}
+.note-btn{
+  display:flex; align-items:center; gap:8px; border:2px solid var(--line); background:var(--surface);
+  padding:0 16px; border-radius:var(--r-lg); cursor:pointer; font-size:15px; font-weight:600; color:var(--ink);
+}
+.note-btn:hover{border-color:var(--accent); color:var(--accent);}
+.area-seg{display:flex; gap:2px; background:var(--surface-2); border-radius:999px; padding:3px; align-items:center;}
+.area-seg button{border:none; background:transparent; border-radius:999px; padding:7px 14px; font-size:14px; font-weight:700; color:var(--ink-soft); cursor:pointer; transition:background 150ms,color 150ms;}
+.area-seg button.on{background:var(--surface); color:var(--accent); box-shadow:var(--shadow-1);}
+.cap-hint{font-size:12.5px; color:var(--ink-faint); margin:6px auto 0; max-width:760px;}
+
+/* ============ COMÚN ============ */
+.view-title{font-size:26px; font-weight:700; margin-bottom:2px;}
+.view-sub{color:var(--ink-soft); font-size:15px; margin-bottom:24px;}
+.block{margin-top:32px;}
+.block-label{font-size:12.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--ink-soft); margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+details.fold > summary{list-style:none; cursor:pointer; user-select:none;}
+details.fold > summary::-webkit-details-marker{display:none;}
+.fold .chev{transition:transform 150ms; color:var(--ink-faint);}
+details[open] > summary .chev{transform:rotate(90deg);}
+.count-pill{font-size:12.5px; color:var(--ink-soft); background:var(--surface-2); border-radius:999px; padding:1px 9px; font-weight:700;}
+.empty{color:var(--ink-soft); font-size:15px; padding:32px 16px; text-align:center;}
+.empty .ic{color:var(--ink-faint); margin-bottom:10px;}
+.btn{border:none; border-radius:var(--r-md); padding:10px 16px; font-size:15px; font-weight:600; cursor:pointer; background:var(--surface-2); color:var(--ink); display:inline-flex; align-items:center; gap:7px; transition:background 150ms;}
+.btn:hover{filter:brightness(0.96);}
+[data-theme="dark"] .btn:hover{filter:brightness(1.15);}
+.btn-accent{background:var(--accent); color:#fff;}
+.btn-accent:hover{background:var(--accent-strong); filter:none;}
+.btn-ghost{background:transparent; color:var(--ink-soft); font-weight:500;}
+.btn-sm{padding:7px 12px; font-size:14px; border-radius:var(--r-sm); height:36px;}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+
+/* ============ TAREAS ============ */
+.task{
+  display:flex; align-items:flex-start; gap:12px; background:var(--surface);
+  border:1px solid var(--line); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:8px;
+  transition:border-color 150ms, opacity 200ms, transform 150ms, box-shadow 150ms;
+}
+.task:hover{border-color:var(--line-strong); box-shadow:var(--shadow-1); transform:translateY(-1px);}
+.task.fading{opacity:0;}
+.task.now-card{border:2px solid var(--accent); background:var(--accent-soft); box-shadow:var(--shadow-1); padding:18px;}
+.task.wait-stale{border-left:4px solid var(--amber);}
+.chk{
+  width:26px;height:26px;min-width:26px;border-radius:50%;border:2.5px solid var(--ink-faint);
+  background:transparent;cursor:pointer;margin:2px 0 0 0; color:transparent; font-size:14px;
+  display:flex;align-items:center;justify-content:center; transition:all 150ms; padding:0;
+}
+.chk:hover{border-color:var(--green); background:var(--green-soft); color:var(--green);}
+@keyframes chkpop{0%{transform:scale(1)}45%{transform:scale(1.25)}100%{transform:scale(1)}}
+.chk.pop{animation:chkpop 200ms ease-out; border-color:var(--green); background:var(--green-soft); color:var(--green);}
+
+/* ---------- Hero de Hoy ---------- */
+.hoy-grid{display:grid; grid-template-columns:1fr; gap:0 24px;}
+@media (min-width:900px){
+  .hoy-grid{grid-template-columns:minmax(0,1fr) 300px;}
+  .hoy-hero{grid-column:1 / -1;}
+  .hoy-side{grid-row:2; grid-column:2; align-self:start; position:sticky; top:0;}
+  .hoy-main{grid-row:2; grid-column:1; min-width:0;}
+}
+.hero{border-radius:var(--r-xl); padding:20px 22px; margin-bottom:20px; border:1px solid var(--line); background:var(--surface);}
+.hero-morning{background:linear-gradient(135deg, var(--amber-soft) 0%, var(--surface) 55%);}
+.hero-afternoon{background:linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 55%);}
+.hero-evening{background:linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 55%);}
+.hero-top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+.hero-greet{font-size:26px; font-weight:700;}
+.hero-line{margin-top:10px; font-size:15.5px; color:var(--ink-soft); font-style:italic;}
+.momentum{display:flex; gap:6px; align-items:center; padding-top:10px;}
+.mdot{width:12px; height:12px; border-radius:50%; border:2px solid var(--line-strong); transition:background 200ms, border-color 200ms;}
+.mdot.fill{background:var(--accent); border-color:var(--accent);}
+.momentum.complete .mdot.fill{background:var(--green); border-color:var(--green);}
+.mdot.extra{width:auto; height:auto; border:none; color:var(--green); font-size:13px; font-weight:800;}
+.momentum .mlabel{font-size:13px; font-weight:700; color:var(--green); margin-left:4px;}
+.side-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:14px;}
+.ev{display:flex; gap:10px; align-items:center; padding:6px 0; font-size:14.5px;}
+.ev-time{font-weight:700; color:var(--ink-soft); font-variant-numeric:tabular-nums; min-width:44px;}
+.ev.past{opacity:.5;}
+.ev.next .ev-time{color:var(--accent);}
+.focus-proj{cursor:pointer; transition:border-color 150ms, box-shadow 150ms;}
+.focus-proj:hover{border-color:var(--line-strong); box-shadow:var(--shadow-1);}
+.chk.done{border-color:var(--green); background:var(--green-soft); color:var(--green);}
+.task-body{flex:1; min-width:0;}
+.now-label{font-size:12px; font-weight:800; color:var(--accent); letter-spacing:1.2px; margin-bottom:3px;}
+.task-title{font-size:16.5px; font-weight:600;}
+.now-card .task-title{font-size:19px; font-weight:650;}
+.task.done-task .task-title{text-decoration:line-through; color:var(--ink-soft);}
+.task-meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:5px; font-size:13.5px; color:var(--ink-soft); align-items:center;}
+.chip{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border-radius:999px; padding:2px 10px; font-size:13px; font-weight:600; color:var(--ink-soft);}
+.chip .cdot{width:8px;height:8px;border-radius:50%;}
+.chip-due{color:var(--amber); font-weight:700; background:transparent; padding:0;}
+.chip-wait{color:var(--ink-soft);}
+.chip-wait.stale{background:var(--amber-soft); color:var(--amber); font-weight:700;}
+.more-btn{width:36px;height:36px;border:none;background:transparent;border-radius:var(--r-sm);cursor:pointer;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;}
+.more-btn:hover{background:var(--surface-2); color:var(--ink);}
+
+/* menú contextual */
+.menu{
+  position:fixed; z-index:300; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-md); box-shadow:var(--shadow-modal); padding:6px; min-width:190px;
+}
+.menu button{
+  display:flex; align-items:center; gap:10px; width:100%; border:none; background:transparent;
+  padding:9px 12px; border-radius:var(--r-sm); cursor:pointer; font-size:14.5px; font-weight:600; color:var(--ink); text-align:left;
+}
+.menu button:hover{background:var(--surface-2);}
+.menu button.danger{color:var(--red);}
+.menu .swatches{display:flex; gap:8px; padding:8px 12px;}
+.menu .swatch{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;}
+.menu .swatch:hover{border-color:var(--ink);}
+
+/* ============ INBOX ============ */
+.inbox-item{background:var(--surface); border:1px dashed var(--line-strong); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:8px;}
+.inbox-item .txt{font-size:16px; margin-bottom:10px;}
+.inbox-actions{display:flex; gap:6px; flex-wrap:wrap;}
+
+/* ============ PROYECTOS ============ */
+.proj-layout{display:flex; gap:24px; align-items:flex-start;}
+.proj-list{width:340px; min-width:340px;}
+.proj-detail{flex:1; min-width:0;}
+.proj-card{
+  background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--accent);
+  border-radius:var(--r-lg); padding:13px 15px; margin-bottom:8px; cursor:pointer; transition:border-color 150ms, box-shadow 150ms;
+}
+.proj-card:hover{box-shadow:var(--shadow-2);}
+.proj-card.selected{background:var(--accent-soft); border-color:var(--accent); border-left-width:4px;}
+.proj-card.closed{opacity:.55;}
+.proj-name{font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;}
+.proj-next-line{font-size:14.5px; margin-top:3px; display:flex; gap:6px; align-items:baseline;}
+.proj-next-line .arrow{color:var(--accent); font-weight:800;}
+.chip-stalled{background:var(--amber-soft); color:var(--amber); font-weight:700; font-size:13px; border-radius:999px; padding:2px 10px; display:inline-flex; align-items:center; gap:5px;}
+.proj-foot{font-size:13px; color:var(--ink-soft); margin-top:6px;}
+.next-hero{
+  background:var(--accent-soft); border-left:4px solid var(--accent); border-radius:var(--r-lg);
+  padding:16px 18px; margin:16px 0 8px;
+}
+.next-hero .lbl{font-size:12px; font-weight:800; letter-spacing:1.2px; color:var(--accent); margin-bottom:4px;}
+.next-hero input{
+  width:100%; border:none; background:transparent; font-size:19px; font-weight:600; color:var(--ink);
+  outline:none; font-family:var(--font); padding:2px 0;
+}
+.next-hero input::placeholder{color:var(--ink-faint); font-weight:400;}
+.next-hero.stalled{background:transparent; border:2px solid var(--amber); border-left:4px solid var(--amber);}
+.log-entry{border-left:3px solid var(--accent-soft); padding:5px 0 5px 14px; margin-bottom:10px;}
+[data-theme="dark"] .log-entry{border-left-color:var(--surface-2);}
+.log-date{font-size:12.5px; font-weight:700; color:var(--ink-soft);}
+.detail-head{display:flex; align-items:center; gap:10px;}
+.detail-head h2{font-size:24px; font-weight:700; flex:1; display:flex; align-items:center; gap:10px; min-width:0;}
+.pdot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.back-btn{display:none; margin-bottom:12px;}
+.inline-add{display:flex; gap:8px; margin-bottom:12px;}
+.inline-add input{flex:1; font-size:15px; padding:9px 13px; border:2px solid var(--line); border-radius:var(--r-md); background:var(--surface); color:var(--ink); outline:none; font-family:var(--font);}
+.inline-add input:focus{border-color:var(--accent);}
+
+/* ============ NOTAS ============ */
+.notes-tools{display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+.search-wrap{flex:1; min-width:220px; position:relative;}
+.search-wrap .ic{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--ink-faint);}
+#noteSearch{width:100%; font-size:16px; padding:10px 14px 10px 40px; border:2px solid var(--line); border-radius:var(--r-md); background:var(--surface); color:var(--ink); outline:none; font-family:var(--font);}
+#noteSearch:focus{border-color:var(--accent);}
+.tag-chip{background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:3px 11px; font-size:13px; font-weight:700; cursor:pointer; border:none; transition:background 150ms;}
+.tag-chip.active{background:var(--accent); color:#fff;}
+.tag-cloud{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+.note-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:14px 16px; margin-bottom:8px;}
+.note-text{font-size:17px; white-space:pre-wrap; overflow-wrap:break-word;}
+.note-meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:9px; align-items:center; font-size:13px; color:var(--ink-soft);}
+
+/* ============ MODALES / TOAST ============ */
+.overlay{position:fixed; inset:0; background:var(--overlay); z-index:200; display:none;}
+.overlay.open{display:block;}
+.modal{
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(.98); z-index:210;
+  background:var(--surface); border-radius:var(--r-xl); padding:24px; width:min(560px,94vw);
+  box-shadow:var(--shadow-modal); display:none; max-height:85vh; overflow-y:auto; opacity:0;
+  transition:opacity 160ms ease-out, transform 160ms ease-out;
+}
+.modal.open{display:block; opacity:1; transform:translate(-50%,-50%) scale(1);}
+.modal h3{font-size:20px; margin-bottom:14px;}
+.modal .close-x{position:absolute; top:14px; right:14px; width:34px;height:34px; border:none; background:transparent; cursor:pointer; color:var(--ink-soft); border-radius:8px; display:flex;align-items:center;justify-content:center;}
+.modal .close-x:hover{background:var(--surface-2);}
+textarea, input.field-input{
+  width:100%; font-size:16px; padding:11px 14px; border:2px solid var(--line); border-radius:var(--r-md);
+  background:var(--surface); color:var(--ink); outline:none; font-family:var(--font);
+}
+textarea:focus, input.field-input:focus{border-color:var(--accent);}
+textarea{min-height:110px; resize:vertical;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:13.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px;}
+.modal-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:8px;}
+select.full{width:100%; font-size:16px; padding:10px 12px; border:2px solid var(--line); border-radius:var(--r-md); background:var(--surface); color:var(--ink); font-family:var(--font);}
+select.mini{border:1px solid var(--line); border-radius:var(--r-sm); padding:3px 6px; font-size:13px; background:var(--surface); color:var(--ink-soft); cursor:pointer; font-family:var(--font);}
+.toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:400;
+  background:var(--ink); color:var(--bg); border-radius:999px; padding:10px 24px; font-weight:600; font-size:15px;
+  opacity:0; transition:opacity 180ms; pointer-events:none; white-space:nowrap;
+}
+.toast.show{opacity:1;}
+.banner-err{background:var(--red-soft); color:var(--red); border-radius:var(--r-lg); padding:16px; font-weight:600; margin:20px auto; max-width:760px; display:none;}
+
+/* ============ RESPONSIVE ============ */
+.bottombar{display:none;}
+@media (max-width:1099px){
+  .sidebar{width:64px; min-width:64px; padding:18px 8px 14px;}
+  .sb-title, .nav-item .lbl, .save-status span.txt, .closeday-btn .lbl, .sb-mini-btn .lbl{display:none;}
+  .sb-head{justify-content:center; padding:0 0 14px;}
+  .nav-item{justify-content:center; padding:11px 0;}
+  .nav-item.active::before{left:-8px;}
+  .nav-badge{position:absolute; top:3px; right:3px; font-size:10.5px; padding:0 5px;}
+  .closeday-btn{justify-content:center; padding:10px 0;}
+  .sb-save-btn .lbl{display:none;}
+  .save-status{justify-content:center;}
+  .sb-mini-btn{justify-content:center;}
+  .proj-layout.detail-open .proj-list{display:none;}
+  .proj-layout:not(.detail-open) .proj-detail{display:none;}
+  .proj-list{width:100%; min-width:0;}
+  .back-btn{display:inline-flex;}
+}
+@media (max-width:719px){
+  .sidebar{display:none;}
+  .viewport{padding:16px 14px 90px;}
+  .capturebar{padding:12px 14px 10px;}
+  .bottombar{
+    display:flex; position:fixed; bottom:0; left:0; right:0; height:56px; z-index:150;
+    background:var(--bg-sidebar); border-top:1px solid var(--line); justify-content:space-around; align-items:center;
+  }
+  .bb-btn{border:none;background:transparent;cursor:pointer;color:var(--ink-soft);display:flex;flex-direction:column;align-items:center;gap:1px;font-size:10.5px;font-weight:700;padding:6px 10px;border-radius:10px;position:relative;}
+  .bb-btn.active{color:var(--accent);}
+  .bb-dot{position:absolute;top:2px;right:6px;min-width:16px;height:16px;border-radius:999px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <span class="sb-title">Mi Día</span>
+      <button class="theme-btn" id="themeBtn" title="Cambiar tema"></button>
+    </div>
+    <div id="navItems"></div>
+    <div class="sb-spacer"></div>
+    <div class="sb-bottom">
+      <button class="closeday-btn" id="closeDayBtn"><span id="icCloseday"></span><span class="lbl">Cerrar día</span></button>
+      <div class="save-status" id="saveStatus"></div>
+      <div id="saveActions"></div>
+      <button class="sb-mini-btn" onclick="location.reload()"><span id="icRefresh"></span><span class="lbl">Recargar datos</span></button>
+    </div>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <div class="capturebar">
+      <div class="capture-row">
+        <input id="captureInput" type="text" placeholder="+ ¿Algo en mente? Suéltalo aquí y Enter" autocomplete="off">
+        <button class="note-btn" id="quickNoteBtn"><span id="icNoteBtn"></span>Nota</button>
+        <div class="area-seg" id="areaSeg"></div>
+      </div>
+      <div class="cap-hint">Pendientes, ideas, recados… todo cae al 📥 <b>Inbox</b> (tu sala de espera) y ahí decides con calma si es tarea, nota o nada.</div>
+    </div>
+    <div class="banner-err" id="dataError">⚠️ No se pudieron cargar los datos (data.js dañado o ausente). Pídele a Claude: "restaura mi data.js desde el último backup". No se perdió nada.</div>
+    <div class="viewport" id="viewport"></div>
+  </div>
+</div>
+
+<!-- barra inferior móvil -->
+<div class="bottombar" id="bottombar"></div>
+
+<!-- Modales -->
+<div class="overlay" id="overlay"></div>
+
+<div class="modal" id="noteModal">
+  <button class="close-x" data-close></button>
+  <h3 id="noteModalTitle">Nota rápida</h3>
+  <div class="field"><textarea id="noteText" placeholder="Lo que está pasando en la junta, lo que te acaban de enseñar, una idea…"></textarea></div>
+  <div class="field"><label>Tags — para encontrarla después (separados por coma)</label><input type="text" class="field-input" id="noteTags" placeholder="juntas, aprendizaje, cliente-x…"></div>
+  <div class="field"><label>Proyecto (opcional — puedes asignarlo después)</label><select class="full" id="noteProject"></select></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" data-close>Cancelar</button>
+    <button class="btn btn-accent" id="saveNoteBtn">Guardar nota</button>
+  </div>
+</div>
+
+<div class="modal" id="closeDayModal">
+  <button class="close-x" data-close></button>
+  <h3>Cierre del día</h3>
+  <div id="closeDayDone" style="margin-bottom:16px;"></div>
+  <div class="inline-add" style="margin-bottom:16px;">
+    <input id="unplannedInput" placeholder="¿Hiciste algo que no estaba aquí? También cuenta. (Enter)" onkeydown="if(event.key==='Enter')addUnplanned()">
+    <button class="btn btn-sm" onclick="addUnplanned()">+ Contar</button>
+  </div>
+  <div id="closeDayPending"></div>
+  <div class="modal-actions"><button class="btn btn-accent" onclick="finishDay()">Listo, hasta mañana 👋</button></div>
+</div>
+
+<div class="modal" id="projModal">
+  <button class="close-x" data-close></button>
+  <h3>Nuevo proyecto</h3>
+  <div class="field"><label>Nombre</label><input type="text" class="field-input" id="projName"></div>
+  <div class="field"><label>Siguiente paso concreto (una línea)</label><input type="text" class="field-input" id="projNext"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" data-close>Cancelar</button>
+    <button class="btn btn-accent" id="saveProjBtn">Crear</button>
+  </div>
+</div>
+
+<div class="modal" id="promptModal">
+  <button class="close-x" data-close></button>
+  <h3 id="promptTitle"></h3>
+  <div class="field"><input type="text" class="field-input" id="promptInput"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" data-close>Cancelar</button>
+    <button class="btn btn-accent" id="promptOk">Guardar</button>
+  </div>
+</div>
+
+<div class="modal" id="moreSheet">
+  <button class="close-x" data-close></button>
+  <h3>Más</h3>
+  <div id="moreSheetBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<div class="modal" id="ghModal">
+  <button class="close-x" data-close></button>
+  <h3>Usar Mi Día en el celular</h3>
+  <p style="font-size:14.5px; color:var(--ink-soft); margin-bottom:14px;">Tus datos se guardan en un repositorio privado de GitHub y la app los lee desde cualquier dispositivo. Los pasos completos están en <b>GUIA - Mi Dia en el celular.md</b> en tu carpeta.</p>
+  <div class="field"><label>Usuario de GitHub</label><input type="text" class="field-input" id="ghOwner" placeholder="tu-usuario"></div>
+  <div class="field"><label>Repositorio privado de datos</label><input type="text" class="field-input" id="ghRepo" placeholder="mi-dia-data"></div>
+  <div class="field"><label>Token (fine-grained, solo ese repo, permiso Contents)</label><input type="password" class="field-input" id="ghToken" placeholder="github_pat_…"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" id="ghDisconnectBtn" onclick="ghDisconnect()">Desconectar</button>
+    <button class="btn btn-ghost" data-close>Cancelar</button>
+    <button class="btn btn-accent" onclick="saveGh()">Guardar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+"use strict";
+/* ================= ICONOS (estilo Lucide, stroke) ================= */
+const IC = {
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  note:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M15 2v5h5"/><path d="M8 13h8M8 17h5"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  zzz:'<path d="M2 4h6l-6 8h6"/><path d="M14 4h8l-8 10h8"/><path d="M6 16h4l-4 6h4"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  chevR:'<polyline points="9 18 15 12 9 6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>',
+  more:'<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
+  save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+  arrowUp:'<path d="M12 19V5M5 12l7-7 7 7"/>',
+  arrowR:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  pause:'<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/>',
+  edit:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>'
+};
+const ic = (n, cls="") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}</svg>`;
+
+/* ================= ESTADO ================= */
+let D=null, fileHandle=null, dirty=false, saveTime=null;
+let view="hoy", selProj=null, activeTag=null, openMenuEl=null;
+let area = "todo";
+try{ area = localStorage.getItem("miDia.area") || "todo"; }catch(e){}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const jstr = s => esc(String(s ?? "").replace(/\\/g,"\\\\").replace(/'/g,"\\'"));
+const uid = p => p + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+const nowISO = () => new Date().toISOString();
+const dateOf = x => { const d = new Date(x); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+const todayStr = () => dateOf(new Date());
+const daysCount = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : 0;
+function daysAgo(iso){
+  if(!iso) return null;
+  const d = daysCount(iso);
+  return d <= 0 ? "hoy" : (d === 1 ? "hace 1 día" : "hace " + d + " días");
+}
+const projById = id => (D?.projects||[]).find(p => p.id === id) || null;
+const byStatus = st => D.tasks.filter(t => t.status === st);
+const inArea = x => area === "todo" || !x.area || x.area === area;
+const byStatusV = st => byStatus(st).filter(inArea);
+function setArea(a){ area = a; try{ localStorage.setItem("miDia.area", a); }catch(e){} renderAll(); }
+function renderAreaSeg(){
+  const el = $("areaSeg"); if(!el) return;
+  el.innerHTML = [["todo","Todo"],["trabajo","Trabajo"],["personal","Personal"]]
+    .map(([k,l]) => `<button class="${area === k ? "on" : ""}" onclick="setArea('${k}')">${l}</button>`).join("");
+}
+const doneToday = () => D.tasks.filter(t => t.status === "hecha" && t.done_at && dateOf(t.done_at) === todayStr());
+
+/* paleta clara/oscura */
+const PAL_L = ["#7C6FF0","#2E9E76","#C08A0B","#D9534A","#3E8FD0","#B0568F","#5E8C61"];
+const PAL_D = ["#948AF5","#52B892","#D9A94A","#E5766D","#6BAEE0","#C77FAC","#83AB86"];
+const LEGACY = {"#2FA47A":"#2E9E76","#D9930D":"#C08A0B","#E05A4E":"#D9534A"};
+function projColor(p){
+  if(!p) return "var(--accent)";
+  let c = LEGACY[p.color] || p.color || PAL_L[0];
+  const i = PAL_L.indexOf(c);
+  const dark = document.documentElement.dataset.theme === "dark";
+  return (i >= 0 && dark) ? PAL_D[i] : c;
+}
+
+/* ================= TEMA ================= */
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem("miDia.theme", t); }catch(e){}
+  $("themeBtn").innerHTML = ic(t === "dark" ? "sun" : "moon");
+  if(D) renderAll();
+}
+function initTheme(){
+  let t = null;
+  try{ t = localStorage.getItem("miDia.theme"); }catch(e){}
+  if(!t) t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+  $("themeBtn").innerHTML = ic(t === "dark" ? "sun" : "moon");
+}
+
+/* ================= NAV ================= */
+const VIEWS = [
+  {id:"hoy",       label:"Hoy",       icon:"sun"},
+  {id:"inbox",     label:"Inbox",     icon:"inbox"},
+  {id:"proyectos", label:"Proyectos", icon:"folder"},
+  {id:"notas",     label:"Notas",     icon:"note"},
+  {id:"sep"},
+  {id:"esperando", label:"Esperando", icon:"clock"},
+  {id:"despues",   label:"Después",   icon:"zzz"}
+];
+function setView(v){
+  view = v;
+  try{ localStorage.setItem("miDia.activeView", v); }catch(e){}
+  renderAll();
+}
+function navBadge(id){
+  if(!D) return "";
+  if(id === "hoy"){
+    const n = byStatusV("hoy").length;
+    return `<span class="nav-badge ${n > 5 ? "over" : ""}">${n}/5</span>`;
+  }
+  if(id === "inbox"){ const n = D.inbox.filter(inArea).length; return n ? `<span class="nav-badge">${n}</span>` : ""; }
+  if(id === "proyectos"){ const n = D.projects.filter(p => p.status === "activo").filter(inArea).length; return n ? `<span class="nav-badge">${n}</span>` : ""; }
+  if(id === "esperando"){
+    const w = byStatusV("esperando");
+    if(!w.length) return "";
+    const stale = w.some(t => daysCount(t.created_at) >= 3);
+    return `<span class="nav-badge ${stale ? "warn" : ""}">${w.length}</span>`;
+  }
+  if(id === "despues"){ const n = byStatusV("despues").length; return n ? `<span class="nav-badge">${n}</span>` : ""; }
+  return "";
+}
+function renderNav(){
+  $("navItems").innerHTML = VIEWS.map(v => v.id === "sep"
+    ? `<div class="sb-sep"></div>`
+    : `<button class="nav-item ${view === v.id ? "active" : ""}" onclick="setView('${v.id}')" title="${v.label}">
+        ${ic(v.icon)}<span class="lbl">${v.label}</span>${navBadge(v.id)}
+      </button>`).join("");
+  // barra inferior móvil
+  const bb = [["hoy","sun","Hoy"],["inbox","inbox","Inbox"],["proyectos","folder","Proyectos"],["notas","note","Notas"]];
+  $("bottombar").innerHTML = bb.map(([id,icn,lb]) => {
+    const cnt = id === "inbox" ? D.inbox.filter(inArea).length : 0;
+    return `<button class="bb-btn ${view === id ? "active" : ""}" onclick="setView('${id}')">${ic(icn)}${lb}${cnt ? `<span class="bb-dot">${cnt}</span>` : ""}</button>`;
+  }).join("") + `<button class="bb-btn" onclick="openMoreSheet()">${ic("more")}Más</button>`;
+}
+function openMoreSheet(){
+  const w = byStatus("esperando").length, d = byStatus("despues").length;
+  $("moreSheetBody").innerHTML = `
+    <button class="btn" onclick="closeModals();setView('esperando')">${ic("clock")} Esperando (${w})</button>
+    <button class="btn" onclick="closeModals();setView('despues')">${ic("zzz")} Después (${d})</button>
+    <button class="btn" onclick="closeModals();openCloseDay()">${ic("moon")} Cerrar día</button>
+    <button class="btn" onclick="closeModals();toggleTheme()">${ic("moon")} Cambiar tema</button>
+    <button class="btn" onclick="closeModals();connectFile()">${ic("save")} Guardar en data.js</button>
+    <button class="btn btn-ghost" onclick="location.reload()">${ic("refresh")} Recargar datos</button>`;
+  openModal("moreSheet");
+}
+function toggleTheme(){
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+
+/* ================= COMPONENTES ================= */
+function taskChips(t, opts={}){
+  const p = projById(t.project_id);
+  const chips = [];
+  if(p) chips.push(`<span class="chip"><span class="cdot" style="background:${projColor(p)}"></span>${esc(p.name)}</span>`);
+  if(t.due){
+    const over = t.due < todayStr();
+    if(over && t.hard_due) chips.push(`<span class="chip chip-due" style="color:var(--red)">📅 venció el ${esc(t.due)}</span>`);
+    else if(over) chips.push(`<span class="chip chip-due">📅 venció el ${esc(t.due)} — ¿sigue importando?</span>`);
+    else chips.push(`<span class="chip chip-due">📅 ${esc(t.due)}</span>`);
+  }
+  if(t.source?.type === "rutina"){
+    const r = D.recurrences.find(x => x.id === t.source.ref);
+    chips.push(`<span class="chip">🔁 ${r && r.every_days > 1 ? "cada " + r.every_days + " días" : "diario"}</span>`);
+  } else if(t.source && t.source.ref) chips.push(`<span class="chip">${esc(t.source.type)}: ${esc(t.source.ref)}</span>`);
+  if(opts.waitAge){
+    const dc = daysCount(t.created_at);
+    const who = t.waiting_on ? "esperando a " + esc(t.waiting_on) : "";
+    chips.push(dc >= 3
+      ? `<span class="chip chip-wait stale">⏳ ${who ? who + " — " : ""}${dc} días — ¿perseguir?</span>`
+      : `<span class="chip chip-wait">⏳ ${who ? who + " · " : ""}${daysAgo(t.created_at)}</span>`);
+  } else if(t.status === "esperando" && t.waiting_on){
+    chips.push(`<span class="chip chip-wait">⏳ ${esc(t.waiting_on)}</span>`);
+  }
+  if(t.note) chips.push(`<span style="color:var(--ink-faint)">${esc(t.note)}</span>`);
+  return chips.length ? `<div class="task-meta">${chips.join("")}</div>` : "";
+}
+function taskCard(t, opts={}){
+  const stale = opts.waitAge && daysCount(t.created_at) >= 3;
+  const cls = ["task", opts.now ? "now-card" : "", stale ? "wait-stale" : "", opts.done ? "done-task" : ""].join(" ");
+  const chk = opts.done
+    ? `<button class="chk done" onclick="undoTask('${t.id}')" title="Regresar a HOY">${ic("check","sm")}</button>`
+    : `<button class="chk" onclick="doneTask('${t.id}', this)" title="Marcar hecha">${ic("check","sm")}</button>`;
+  return `<div class="${cls}" data-task="${t.id}">
+    ${chk}
+    <div class="task-body">
+      ${opts.now ? '<div class="now-label">AHORA</div>' : ""}
+      <div class="task-title">${esc(t.title)}</div>
+      ${taskChips(t, opts)}
+    </div>
+    ${opts.done ? "" : `<button class="more-btn" onclick="taskMenu(event,'${t.id}')" title="Mover / opciones">${ic("more")}</button>`}
+  </div>`;
+}
+function emptyState(iconName, msg){
+  return `<div class="empty">${ic(iconName,"lg")}<div>${msg}</div></div>`;
+}
+
+/* menú contextual genérico */
+function openCtxMenu(ev, html){
+  ev.stopPropagation();
+  closeMenu();
+  const m = document.createElement("div");
+  m.className = "menu";
+  m.innerHTML = html;
+  document.body.appendChild(m);
+  const r = ev.currentTarget.getBoundingClientRect();
+  m.style.top = Math.min(r.bottom + 4, window.innerHeight - m.offsetHeight - 10) + "px";
+  m.style.left = Math.min(r.left, window.innerWidth - m.offsetWidth - 10) + "px";
+  openMenuEl = m;
+}
+function closeMenu(){ if(openMenuEl){ openMenuEl.remove(); openMenuEl = null; } }
+document.addEventListener("click", closeMenu);
+
+function taskMenu(ev, id){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  const opts = {
+    hoy:      [["siguiente","arrowR","Poner en fila (próximo)"],["esperando","clock","Esperando a alguien"],["despues","zzz","Soltar a Después"]],
+    siguiente:[["hoy","arrowUp","Subir a Hoy"],["esperando","clock","Esperando a alguien"],["despues","zzz","Soltar a Después"]],
+    esperando:[["hoy","arrowUp","Subir a Hoy"],["siguiente","arrowR","Poner en fila (próximo)"]],
+    despues:  [["hoy","arrowUp","Subir a Hoy"],["siguiente","arrowR","Poner en fila (próximo)"]]
+  }[t.status] || [];
+  const areaBtns = `<button onclick="setTaskArea('${id}','trabajo')">${t.area === "trabajo" ? "✓ " : ""}Ámbito: Trabajo</button>
+    <button onclick="setTaskArea('${id}','personal')">${t.area === "personal" ? "✓ " : ""}Ámbito: Personal</button>`;
+  const projBtns = D.projects.filter(p => p.status !== "cerrado").map(p =>
+    `<button onclick="taskAssign('${id}','${p.id}')">${t.project_id === p.id ? "✓ " : ""}<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${projColor(p)};"></span> ${esc(p.name)}</button>`).join("");
+  const waitBtn = t.status === "esperando" ? `<button onclick="editWaiting('${id}')">${ic("clock","sm")} ¿A quién esperas?${t.waiting_on ? " (" + esc(t.waiting_on) + ")" : ""}</button>` : "";
+  const html = `<button onclick="editTask('${id}')">${ic("edit","sm")} Editar texto</button>`
+    + waitBtn
+    + opts.map(([st,icn,lb]) => `<button onclick="moveTask('${id}','${st}')">${ic(icn,"sm")} ${lb}</button>`).join("")
+    + projBtns
+    + areaBtns
+    + `<button class="danger" onclick="dropTask('${id}')">${ic("trash","sm")} Borrar tarea</button>`;
+  openCtxMenu(ev, html);
+}
+
+/* ================= VISTAS ================= */
+function vHoy(){
+  const days = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const months = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const n = new Date();
+  const dateStr = `${days[n.getDay()]} ${n.getDate()} de ${months[n.getMonth()]}`;
+  const hoy = byStatusV("hoy"), sig = byStatusV("siguiente"), done = doneToday().filter(inArea);
+  const mod = !!(D.settings?.modules?.armar_dia);
+  const dayFresh = !!(D.day && D.day.date === todayStr());
+  /* ---- modo foco: una sola cosa ---- */
+  if(window._focusMode){
+    const t = hoy[0];
+    return `<div class="content">
+      <div class="view-title">Una sola cosa</div>
+      <div class="view-sub">${dateStr} — nada más existe ahorita.</div>
+      ${t ? taskCard(t,{now:true}) + `
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <button class="btn btn-accent" onclick="window._focusMode=false;renderAll()">Empiezo</button>
+          <button class="btn" onclick="rotateHoy('${t.id}')">Esta no puedo ahora</button>
+        </div>`
+      : emptyState("sun","No hay nada en HOY. 🙂") + `<button class="btn btn-ghost" onclick="window._focusMode=false;renderAll()">Volver</button>`}
+    </div>`;
+  }
+  /* ---- modo mínimo ---- */
+  if(mod && dayFresh && D.day.mode === "minimo"){
+    const care = hoy.filter(t => t.kind === "cuidado").slice(0,3);
+    return `<div class="content">
+      <div class="view-title">Hoy</div>
+      <div class="view-sub">Hoy es un día de mínimos. Con esto basta.</div>
+      ${care.length ? care.map(t => taskCard(t)).join("")
+        : `<div class="empty">Pídele a Claude: "ponme 2-3 cositas de cuidado" — comer algo, agua, una cosa esencial. Nada más cuenta hoy.</div>`}
+      <div style="margin-top:24px;"><button class="btn btn-ghost" onclick="D.day.mode='normal';markDirty()">Ver el día completo</button></div>
+    </div>`;
+  }
+  /* ---- tarjeta matutina / banner ancla ---- */
+  let top = "";
+  if(mod && !dayFresh){
+    top = `<div class="task now-card" style="display:block;margin-bottom:18px;">
+      <div class="now-label">BUENOS DÍAS</div>
+      <div style="font-size:19px;font-weight:650;margin-bottom:12px;">¿Con cuánta pila amaneciste?</div>
+      <input type="range" id="energySlider" min="0" max="10" value="6" style="width:100%;accent-color:var(--accent);"
+        oninput="document.getElementById('energyVal').textContent=this.value">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-top:2px;"><span>poca (0–3)</span><span>normal (4–7)</span><span>con pila (8–10)</span></div>
+      <div id="energyVal" style="text-align:center;font-size:22px;font-weight:800;color:var(--accent);margin:4px 0 8px;">6</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-accent" onclick="setDay(true)">Que Claude arme mi día</button>
+        <button class="btn btn-ghost" onclick="setDay(false)">Lo armo yo</button>
+      </div>
+    </div>`;
+  } else if(mod && dayFresh && D.day.mode === "ancla" && D.day.anchor){
+    top = `<div class="next-hero" style="margin:0 0 18px;">
+      <div class="lbl">⚓ DÍA CON ANCLA</div>
+      <div style="font-size:17px;">Hoy: <b>${esc(D.day.anchor.title)}</b> a las ${esc(D.day.anchor.time)} — hasta entonces, solo tareas cortas. Lo demás no cuenta.</div>
+    </div>`;
+  }
+  const showNow = !(mod && !dayFresh);
+  /* ---- hero: saludo + momentum + línea de Claude ---- */
+  const h = new Date().getHours();
+  const tint = h < 12 ? "hero-morning" : h < 19 ? "hero-afternoon" : "hero-evening";
+  const greet = (h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches") + ", Luis";
+  const dPlan = done.filter(t => t.note !== "no planeada").length;
+  const dExtra = done.length - dPlan;
+  const complete = hoy.length === 0 && dPlan > 0;
+  const dots = Array(dPlan).fill('<span class="mdot fill"></span>').join("")
+    + Array(Math.min(hoy.length, 8)).fill('<span class="mdot"></span>').join("")
+    + (dExtra ? `<span class="mdot extra">+${dExtra}</span>` : "")
+    + (complete ? '<span class="mlabel">Plan del día ✓</span>' : "");
+  const heroLine = (dayFresh && D.day.greeting)
+    ? esc(D.day.greeting)
+    : `${hoy.length ? hoy.length + " para hoy" : "Nada pendiente hoy"}${sig.length ? " · " + sig.length + " en fila" : ""}`;
+  const hero = `<div class="hero ${tint} hoy-hero">
+    <div class="hero-top">
+      <div><div class="hero-greet">${greet}</div><div class="view-sub" style="margin:0;">${dateStr}</div></div>
+      <div class="momentum ${complete ? "complete" : ""}" title="Tu día toma forma">${dots}</div>
+    </div>
+    <div class="hero-line">${heroLine}</div>
+  </div>`;
+  /* ---- panel lateral: Tu día + En foco ---- */
+  let side = "";
+  if(dayFresh){
+    const evs = D.day.events || [];
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const evMin = e => { const [hh,mm] = String(e.time||"0:0").split(":").map(Number); return hh * 60 + (mm||0); };
+    const nextIdx = evs.findIndex(e => evMin(e) >= nowMin);
+    side += `<div class="side-card">
+      <div class="block-label" style="margin-bottom:8px;">Tu día</div>
+      ${evs.length ? evs.map((e,i) => {
+        const past = evMin(e) < nowMin;
+        const diff = evMin(e) - nowMin;
+        const chip = i === nextIdx ? `<span class="chip" style="margin-left:auto;">${diff >= 60 ? "en ~" + Math.round(diff/60) + " h" : "en " + Math.max(diff,1) + " min"}</span>` : "";
+        return `<div class="ev ${past ? "past" : ""} ${i === nextIdx ? "next" : ""}"><span class="ev-time">${esc(e.time)}</span><span>${esc(e.title)}</span>${chip}</div>`;
+      }).join("") : `<div style="font-size:14.5px; color:var(--ink-soft);">Sin juntas hoy — el día es tuyo. ✨</div>`}
+    </div>`;
+  }
+  let fp = (dayFresh && D.day.focus_project) ? projById(D.day.focus_project) : null;
+  if(!fp){ const t0 = hoy.find(t => t.project_id); fp = t0 ? projById(t0.project_id) : null; }
+  if(!fp){ fp = D.projects.filter(p => p.status === "activo").filter(inArea).sort((a,b) => lastActivity(b).localeCompare(lastActivity(a)))[0] || null; }
+  if(fp){
+    side += `<div class="side-card focus-proj" onclick="selectProj('${fp.id}');setView('proyectos')">
+      <div class="block-label" style="margin-bottom:6px;">En foco</div>
+      <div class="proj-name"><span class="pdot" style="background:${projColor(fp)}"></span>${esc(fp.name)}</div>
+      ${fp.next_step ? `<div class="proj-next-line"><span class="arrow">➜</span><span>${esc(fp.next_step)}</span></div>` : ""}
+    </div>`;
+  }
+  return `<div class="content wide"><div class="hoy-grid">
+    ${hero}
+    <div class="hoy-main">
+      ${top}
+      ${hoy.length && showNow ? `<div style="display:flex; justify-content:flex-end; margin-bottom:8px;"><button class="btn btn-sm btn-ghost" onclick="window._focusMode=true;renderAll()" title="Muéstrame una sola cosa">¿Y ahora qué?</button></div>` : ""}
+      ${hoy.length
+        ? hoy.map((t,i) => taskCard(t,{now:i===0 && showNow})).join("")
+        : (done.length
+          ? emptyState("check","Plan cumplido. Lo que hagas ahora es regalo. 🙂")
+          : emptyState("sun","Nada en HOY todavía. Sube algo de la fila, o pídele a Claude que arme tu día. 🙂"))}
+      <details class="fold block" open>
+        <summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>En fila — lo próximo después de Hoy <span class="count-pill">${sig.length}</span></div></summary>
+        ${sig.length ? sig.map(t => taskCard(t)).join("") : `<div class="empty">Fila limpia — cuando algo importe, súbelo.</div>`}
+      </details>
+      <details class="fold block">
+        <summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>Hechas hoy <span class="count-pill">${done.length}</span></div></summary>
+        ${done.length ? done.map(t => taskCard(t,{done:true})).join("") : `<div class="empty">Aún nada — la primera es la más difícil.</div>`}
+      </details>
+    </div>
+    <div class="hoy-side">${side}</div>
+  </div></div>`;
+}
+function vInbox(){
+  const items = D.inbox.filter(inArea);
+  return `<div class="content">
+    <div class="view-title">Inbox</div>
+    <div class="view-sub">Todo lo que capturas cae aquí. Una decisión por item, sin prisa: ¿va para Hoy, a la fila, es una nota… o nada?</div>
+    ${items.length ? items.map(i => `
+      <div class="inbox-item">
+        <div class="txt">${esc(i.text)}</div>
+        <div class="inbox-actions">
+          <button class="btn btn-sm" onclick="inboxTo('${i.id}','hoy')">${ic("arrowUp","sm")} Hoy</button>
+          <button class="btn btn-sm" onclick="inboxTo('${i.id}','siguiente')" title="Lo próximo que harás cuando HOY se vacíe">${ic("arrowR","sm")} En fila</button>
+          <button class="btn btn-sm" onclick="inboxTo('${i.id}','despues')">${ic("zzz","sm")} Después</button>
+          <button class="btn btn-sm" onclick="inboxToNote('${i.id}')">${ic("note","sm")} Nota</button>
+          <button class="more-btn" onclick="inboxDrop('${i.id}')" title="Descartar">${ic("trash","sm")}</button>
+        </div>
+      </div>`).join("") : emptyState("inbox","Inbox vacío. Tu cabeza también puede estarlo. ✨")}
+  </div>`;
+}
+function vEsperando(){
+  const w = [...byStatusV("esperando")].sort((a,b) => daysCount(b.created_at) - daysCount(a.created_at));
+  return `<div class="content">
+    <div class="view-title">Esperando</div>
+    <div class="view-sub">Cosas que dependen de alguien más. Lo viejo sube arriba.</div>
+    ${w.length ? w.map(t => taskCard(t,{waitAge:true})).join("") : emptyState("clock","Nadie te debe nada. 🎉")}
+  </div>`;
+}
+function vDespues(){
+  const d = byStatusV("despues");
+  const arc = byStatusV("archivo");
+  return `<div class="content">
+    <div class="view-title">Después</div>
+    <div class="view-sub">Sin presión. Aquí nada caduca.</div>
+    ${d.length ? d.map(t => taskCard(t)).join("") : emptyState("zzz","Nada guardado para después.")}
+    ${arc.length ? `<details class="fold block">
+      <summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>Archivo <span class="count-pill">${arc.length}</span></div></summary>
+      ${arc.map(t => `<div class="task" style="opacity:.55;"><div class="task-body"><div class="task-title">${esc(t.title)}</div></div>
+        <button class="more-btn" onclick="moveTask('${t.id}','despues')" title="Revivir">${ic("arrowUp","sm")}</button></div>`).join("")}
+    </details>` : ""}
+  </div>`;
+}
+function vNotas(){
+  const q = (window._noteQuery || "").toLowerCase().trim();
+  let notes = D.notes.filter(inArea).sort((a,b) => (b.created_at||"").localeCompare(a.created_at||""));
+  if(activeTag) notes = notes.filter(n => (n.tags||[]).includes(activeTag));
+  if(q) notes = notes.filter(n =>
+    (n.text||"").toLowerCase().includes(q) ||
+    (n.tags||[]).some(t => t.toLowerCase().includes(q)) ||
+    (projById(n.project_id)?.name || "").toLowerCase().includes(q));
+  const allTags = [...new Set(D.notes.flatMap(n => n.tags || []))].sort();
+  return `<div class="content">
+    <div class="view-title">Notas</div>
+    <div class="view-sub">Juntas, aprendizajes, ideas — buscables por texto o tag.</div>
+    <div class="notes-tools">
+      <div class="search-wrap">${ic("search","sm")}<input id="noteSearch" type="text" placeholder="Buscar en notas…" value="${esc(window._noteQuery||"")}"></div>
+    </div>
+    ${allTags.length ? `<div class="tag-cloud">${allTags.map(t =>
+      `<button class="tag-chip ${t === activeTag ? "active" : ""}" onclick="toggleTag('${jstr(t)}')">#${esc(t)}</button>`).join("")}</div>` : ""}
+    ${notes.length ? notes.map(n => noteCard(n)).join("")
+      : emptyState("note", q || activeTag ? `Nada coincide con «${esc(q || "#"+activeTag)}». Prueba con menos letras.` : "Sin notas aún. Usa el botón Nota de arriba.")}
+  </div>`;
+}
+function noteCard(n, compact=false){
+  const p = projById(n.project_id);
+  return `<div class="note-card">
+    <div class="note-text">${esc(n.text)}</div>
+    <div class="note-meta">
+      <span>${daysAgo(n.created_at) || ""}</span>
+      ${(n.tags||[]).map(t => `<button class="tag-chip" onclick="toggleTag('${jstr(t)}');setView('notas')">#${esc(t)}</button>`).join("")}
+      ${p ? `<span class="chip"><span class="cdot" style="background:${projColor(p)}"></span>${esc(p.name)}</span>` : ""}
+      ${compact ? "" : `<button class="more-btn" onclick="noteMenu(event,'${n.id}')" title="Opciones">${ic("more")}</button>`}
+    </div>
+  </div>`;
+}
+function noteMenu(ev, id){
+  const n = D.notes.find(x => x.id === id); if(!n) return;
+  const projBtns = D.projects.filter(p => p.status !== "cerrado").map(p =>
+    `<button onclick="noteAssign('${id}','${p.id}')"><span class="cdot" style="background:${projColor(p)};width:9px;height:9px;border-radius:50%;display:inline-block;"></span> ${esc(p.name)}</button>`).join("");
+  openCtxMenu(ev, `
+    <button onclick="openNoteModal('${id}')">${ic("edit","sm")} Editar nota y tags</button>
+    ${n.project_id ? `<button onclick="noteAssign('${id}','')">${ic("x","sm")} Quitar de proyecto</button>` : ""}
+    ${projBtns}
+    <button class="danger" onclick="noteDrop('${id}')">${ic("trash","sm")} Borrar nota</button>`);
+}
+
+/* ---------- PROYECTOS ---------- */
+function projCard(p){
+  const last = (p.log && p.log[0]) || null;
+  const open = D.tasks.filter(t => t.project_id === p.id && t.status !== "hecha").length;
+  const stalled = p.status === "activo" && !p.next_step;
+  const nextLine = p.status === "cerrado"
+    ? `<div class="proj-foot">cerrado ${p.closed_at ? daysAgo(p.closed_at) : ""}</div>`
+    : (stalled
+      ? `<div style="margin-top:5px;"><span class="chip-stalled">⚠ Sin siguiente paso</span></div>`
+      : `<div class="proj-next-line"><span class="arrow">➜</span><span>${esc(p.next_step || "")}</span></div>`);
+  return `<div class="proj-card ${selProj === p.id ? "selected" : ""} ${p.status === "cerrado" ? "closed" : ""}"
+      style="border-left-color:${projColor(p)}" onclick="selectProj('${p.id}')">
+    <div class="proj-name">${esc(p.name)} ${p.status === "pausa" ? ic("pause","sm") : ""}</div>
+    ${nextLine}
+    ${p.status !== "cerrado" ? `<div class="proj-foot">🗒 ${last ? "última nota " + (daysAgo(last.date) || last.date) : "sin bitácora"} · ${open} tareas abiertas</div>` : ""}
+  </div>`;
+}
+function lastActivity(p){ return (p.log && p.log[0] && p.log[0].date) || "0000-00-00"; }
+function vProyectos(){
+  const act = D.projects.filter(p => p.status === "activo").filter(inArea)
+    .sort((a,b) => ((!a.next_step) === (!b.next_step)) ? lastActivity(a).localeCompare(lastActivity(b)) : (!a.next_step ? -1 : 1));
+  const pau = D.projects.filter(p => p.status === "pausa").filter(inArea);
+  const cer = D.projects.filter(p => p.status === "cerrado").filter(inArea).sort((a,b) => (b.closed_at||"").localeCompare(a.closed_at||""));
+  const list = `
+    <div class="proj-list">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="block-label" style="margin:0;">Activos <span class="count-pill">${act.length}</span></div>
+        <button class="btn btn-sm" onclick="openNewProj()">${ic("plus","sm")} Nuevo</button>
+      </div>
+      ${act.map(projCard).join("") || `<div class="empty">Sin proyectos activos. Crea el primero con + Nuevo.</div>`}
+      ${pau.length ? `<details class="fold block"><summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>Pausados <span class="count-pill">${pau.length}</span></div></summary>${pau.map(projCard).join("")}</details>` : ""}
+      ${cer.length ? `<details class="fold block"><summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>Cerrados <span class="count-pill">${cer.length}</span></div></summary>${cer.map(projCard).join("")}</details>` : ""}
+    </div>`;
+  const p = projById(selProj);
+  const detail = `<div class="proj-detail">${p ? projDetail(p) : emptyState("folder","Elige un proyecto de la lista ←")}</div>`;
+  return `<div class="content wide">
+    <div class="view-title" style="margin-bottom:18px;">Proyectos</div>
+    <div class="proj-layout ${p ? "detail-open" : ""}">${list}${detail}</div>
+  </div>`;
+}
+function projDetail(p){
+  const tasks = D.tasks.filter(t => t.project_id === p.id && t.status !== "hecha");
+  const notes = D.notes.filter(n => n.project_id === p.id);
+  const showAllLog = window._showAllLog === p.id;
+  const log = p.log || [];
+  const logShown = showAllLog ? log : log.slice(0,5);
+  const stalled = !p.next_step;
+  return `
+    <button class="btn btn-sm btn-ghost back-btn" onclick="selectProj(null)">${ic("back","sm")} Proyectos</button>
+    <div class="detail-head">
+      <h2><span class="pdot" style="background:${projColor(p)}"></span>${esc(p.name)}</h2>
+      <button class="more-btn" onclick="projMenu(event,'${p.id}')" title="Opciones del proyecto">${ic("more")}</button>
+    </div>
+    <div class="next-hero ${stalled ? "stalled" : ""}">
+      <div class="lbl" ${stalled ? 'style="color:var(--amber)"' : ""}>SIGUIENTE PASO</div>
+      <input id="nextStepInput" value="${esc(p.next_step||"")}" placeholder="¿Cuál es el siguiente paso concreto? Una línea basta."
+        onchange="updateNext('${p.id}', this.value)">
+      ${p.next_step ? `<button class="btn btn-sm" style="margin-top:8px;" onclick="completeNext('${p.id}')">${ic("check","sm")} Hecho, definir el siguiente</button>` : ""}
+    </div>
+    <div class="block">
+      <div class="block-label">Bitácora</div>
+      <div class="inline-add">
+        <input id="logInput" placeholder="Qué pasó / qué se decidió… (Enter agrega)" onkeydown="if(event.key==='Enter')addLog('${p.id}')">
+        <button class="btn btn-sm btn-accent" onclick="addLog('${p.id}')">${ic("plus","sm")} Agregar</button>
+      </div>
+      ${logShown.map(l => `<div class="log-entry"><div class="log-date">${esc(l.date)}</div><div>${esc(l.text)}</div></div>`).join("") || `<div class="empty" style="padding:12px;">Bitácora vacía. La primera línea te la agradecerá tu yo del futuro.</div>`}
+      ${log.length > 5 && !showAllLog ? `<button class="btn btn-sm btn-ghost" onclick="window._showAllLog='${p.id}';renderAll()">Ver todo (${log.length})</button>` : ""}
+    </div>
+    <div class="block">
+      <div class="block-label">Tareas abiertas <span class="count-pill">${tasks.length}</span></div>
+      <div class="inline-add">
+        <input id="newTaskInput" placeholder="Nueva tarea del proyecto… (Enter, va a la fila)" onkeydown="if(event.key==='Enter')addProjTask('${p.id}')">
+        <button class="btn btn-sm" onclick="addProjTask('${p.id}')">${ic("plus","sm")} Tarea</button>
+      </div>
+      ${tasks.map(t => taskCard(t)).join("") || `<div class="empty" style="padding:12px;">Ninguna.</div>`}
+    </div>
+    <div class="block">
+      ${notes.length > 3
+        ? `<details class="fold"><summary><div class="block-label"><span class="chev">${ic("chevR","sm")}</span>Notas del proyecto <span class="count-pill">${notes.length}</span></div></summary>${notes.map(n => noteCard(n,true)).join("")}</details>`
+        : `<div class="block-label">Notas del proyecto <span class="count-pill">${notes.length}</span></div>${notes.map(n => noteCard(n,true)).join("") || `<div class="empty" style="padding:12px;">Ninguna.</div>`}`}
+    </div>`;
+}
+function projMenu(ev, id){
+  const p = projById(id); if(!p) return;
+  const swatches = PAL_L.map((c,i) => {
+    const dark = document.documentElement.dataset.theme === "dark";
+    return `<button class="swatch" style="background:${dark ? PAL_D[i] : c}" onclick="setProjColor('${id}','${c}')" title="color"></button>`;
+  }).join("");
+  openCtxMenu(ev, `
+    <button onclick="renameProj('${id}')">${ic("edit","sm")} Renombrar</button>
+    <button onclick="setProjArea('${id}','trabajo')">${p.area === "trabajo" ? "✓ " : ""}Ámbito: Trabajo</button>
+    <button onclick="setProjArea('${id}','personal')">${p.area === "personal" ? "✓ " : ""}Ámbito: Personal</button>
+    <div class="swatches">${swatches}</div>
+    ${p.status === "activo"
+      ? `<button onclick="projStatus('${id}','pausa')">${ic("pause","sm")} Pausar</button>`
+      : `<button onclick="projStatus('${id}','activo')">${ic("play","sm")} Reactivar</button>`}
+    ${p.status !== "cerrado" ? `<button onclick="closeProj('${id}')">${ic("check","sm")} Cerrar proyecto</button>` : ""}`);
+}
+
+/* ================= RENDER RAÍZ ================= */
+function renderAll(){
+  if(!D) return;
+  renderNav();
+  renderAreaSeg();
+  renderSaveStatus();
+  const v = { hoy:vHoy, inbox:vInbox, proyectos:vProyectos, notas:vNotas, esperando:vEsperando, despues:vDespues }[view] || vHoy;
+  $("viewport").innerHTML = v();
+  const ns = $("noteSearch");
+  if(ns){
+    ns.addEventListener("input", e => {
+      window._noteQuery = e.target.value;
+      // re-render solo la lista conservando foco
+      const pos = e.target.selectionStart;
+      renderAll();
+      const el = $("noteSearch"); if(el){ el.focus(); el.setSelectionRange(pos,pos); }
+    });
+  }
+}
+
+/* ================= ACCIONES ================= */
+function markDirty(){
+  dirty = true;
+  D.updated_at = nowISO(); D.updated_by = cloudMode ? "movil" : "app";
+  if(cloudMode) cloudSave();
+  else if(fileHandle) saveToFile();
+  else renderSaveStatus();
+  renderAll();
+}
+function capture(){
+  if(!D) return;
+  const v = $("captureInput").value.trim(); if(!v) return;
+  D.inbox.unshift({ id: uid("i"), text: v, area: area !== "todo" ? area : null, created_at: nowISO() });
+  $("captureInput").value = "";
+  toast("Capturado ✓ — suéltalo de tu cabeza");
+  markDirty();
+}
+function overHoyLimit(){
+  return byStatus("hoy").length >= 5 && !confirm("HOY ya tiene 5 tareas. Más de 5 = día imposible. ¿Seguro?");
+}
+function inboxTo(id, st){
+  if(st === "hoy" && overHoyLimit()) return;
+  const i = D.inbox.findIndex(x => x.id === id); if(i < 0) return;
+  const it = D.inbox.splice(i,1)[0];
+  D.tasks.push({ id: uid("t"), title: it.text, status: st, project_id: null, due: null, source: null, note: null, area: it.area || null, created_at: nowISO(), done_at: null });
+  markDirty();
+}
+function setTaskArea(id, a){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  t.area = t.area === a ? null : a; markDirty();
+}
+function setProjArea(id, a){
+  const p = projById(id); if(!p) return;
+  p.area = p.area === a ? null : a; markDirty();
+}
+function inboxToNote(id){
+  const i = D.inbox.findIndex(x => x.id === id); if(i < 0) return;
+  const it = D.inbox.splice(i,1)[0];
+  D.notes.unshift({ id: uid("n"), text: it.text, tags: [], project_id: null, area: it.area || null, created_at: it.created_at });
+  toast("Convertido en nota");
+  markDirty();
+}
+function inboxDrop(id){ D.inbox = D.inbox.filter(x => x.id !== id); markDirty(); }
+function doneTask(id, btn){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  const card = btn && btn.closest(".task");
+  const finish = () => {
+    t.status = "hecha"; t.done_at = nowISO();
+    if(t.source?.type === "rutina"){
+      const r = D.recurrences.find(x => x.id === t.source.ref);
+      if(r){ const d = new Date(); d.setDate(d.getDate() + (r.every_days || 1)); r.next_due = dateOf(d); }
+    }
+    if(byStatus("hoy").filter(inArea).length === 0 && doneToday().length > 0) toast("Plan del día completo ✨");
+    else if(t.source?.type === "rutina") toast("¡Hecha! 🎉 Vuelve en su próxima fecha.");
+    else toast("¡Hecha! 🎉");
+    markDirty();
+  };
+  if(card && !window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    btn.classList.add("done","pop");
+    setTimeout(() => { card.classList.add("fading"); setTimeout(finish, 200); }, 300);
+  } else finish();
+}
+function undoTask(id){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  t.status = "hoy"; t.done_at = null; markDirty();
+}
+function moveTask(id, st){
+  if(st === "hoy" && overHoyLimit()) return;
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  t.status = st; markDirty();
+  if(st === "esperando" && !t.waiting_on) editWaiting(id);
+}
+function editTask(id){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  showPrompt("Editar tarea", t.title, v => { if(v.trim()){ t.title = v.trim(); markDirty(); } });
+}
+function editWaiting(id){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  showPrompt("¿A quién estás esperando? (opcional)", t.waiting_on || "", v => { t.waiting_on = v.trim() || null; markDirty(); });
+}
+function taskAssign(id, pid){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  t.project_id = t.project_id === pid ? null : pid; markDirty();
+  toast(t.project_id ? "Tarea asignada al proyecto ✓" : "Tarea sin proyecto");
+}
+function dropTask(id){
+  if(!confirm("¿Borrar esta tarea? No se puede deshacer.")) return;
+  D.tasks = D.tasks.filter(x => x.id !== id); markDirty();
+}
+function toggleTag(t){ activeTag = (activeTag === t) ? null : t; renderAll(); }
+function noteAssign(id, pid){
+  const n = D.notes.find(x => x.id === id); if(!n) return;
+  n.project_id = pid || null; markDirty();
+  toast(pid ? "Nota asignada ✓" : "Nota sin proyecto");
+}
+function noteDrop(id){
+  if(!confirm("¿Borrar esta nota?")) return;
+  D.notes = D.notes.filter(x => x.id !== id); markDirty();
+}
+
+/* nota rápida (crear y editar) */
+function openNoteModal(editId){
+  window._editNoteId = (typeof editId === "string") ? editId : null;
+  const n = window._editNoteId ? D.notes.find(x => x.id === window._editNoteId) : null;
+  $("noteModalTitle").textContent = n ? "Editar nota" : "Nota rápida";
+  $("noteProject").innerHTML = `<option value="">— sin proyecto (queda en Notas) —</option>` +
+    D.projects.filter(p => p.status !== "cerrado").map(p => `<option value="${p.id}" ${n && n.project_id === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  $("noteText").value = n ? n.text : "";
+  $("noteTags").value = n ? (n.tags || []).join(", ") : "";
+  openModal("noteModal"); $("noteText").focus();
+}
+function saveQuickNote(){
+  const text = $("noteText").value.trim(); if(!text) return;
+  const tags = $("noteTags").value.split(",").map(s => s.trim().toLowerCase().replace(/['"`\\]/g,"").replace(/\s+/g,"-")).filter(Boolean);
+  if(window._editNoteId){
+    const n = D.notes.find(x => x.id === window._editNoteId);
+    if(n){ n.text = text; n.tags = tags; n.project_id = $("noteProject").value || null; }
+    window._editNoteId = null;
+    closeModals(); toast("Nota actualizada ✓"); markDirty(); return;
+  }
+  D.notes.unshift({ id: uid("n"), text, tags, project_id: $("noteProject").value || null, area: area !== "todo" ? area : null, created_at: nowISO() });
+  closeModals(); toast("Nota guardada");
+  markDirty();
+}
+
+/* proyectos */
+function selectProj(id){
+  selProj = id; window._showAllLog = null;
+  try{ localStorage.setItem("miDia.selectedProject", id || ""); }catch(e){}
+  renderAll();
+}
+function openNewProj(){ $("projName").value = ""; $("projNext").value = ""; openModal("projModal"); $("projName").focus(); }
+function saveNewProj(){
+  const name = $("projName").value.trim(); if(!name) return;
+  const p = { id: uid("p"), name, status: "activo",
+    color: PAL_L[D.projects.length % PAL_L.length],
+    initiative: null, next_step: $("projNext").value.trim() || "", log: [] };
+  D.projects.push(p);
+  closeModals(); selectProj(p.id); setView("proyectos"); markDirty();
+}
+function updateNext(id, val){
+  const p = projById(id); if(!p) return;
+  p.next_step = val.trim(); markDirty();
+}
+function completeNext(id){
+  const p = projById(id); if(!p || !p.next_step) return;
+  p.log = p.log || [];
+  p.log.unshift({ date: todayStr(), text: "✓ Completado: " + p.next_step });
+  p.next_step = "";
+  markDirty();
+  const el = $("nextStepInput"); if(el) el.focus();
+  toast("¡Paso completado! ¿Cuál sigue?");
+}
+function addLog(id){
+  const p = projById(id); if(!p) return;
+  const el = $("logInput"); const txt = (el?.value || "").trim(); if(!txt) return;
+  p.log = p.log || [];
+  p.log.unshift({ date: todayStr(), text: txt });
+  markDirty(); toast("Bitácora actualizada");
+}
+function addProjTask(id){
+  const el = $("newTaskInput"); const txt = (el?.value || "").trim(); if(!txt) return;
+  D.tasks.push({ id: uid("t"), title: txt, status: "siguiente", project_id: id, due: null, source: null, note: null, area: projById(id)?.area || null, created_at: nowISO(), done_at: null });
+  markDirty(); toast("Tarea agregada a la fila");
+}
+function projStatus(id, st){
+  const p = projById(id); if(!p) return;
+  p.status = st; markDirty();
+}
+function closeProj(id){
+  if(!confirm("El proyecto se archiva en Cerrados, nada se borra. ¿Cerrar?")) return;
+  const p = projById(id); if(!p) return;
+  p.status = "cerrado"; p.closed_at = nowISO();
+  if(selProj === id) selProj = null;
+  markDirty();
+}
+function renameProj(id){
+  const p = projById(id); if(!p) return;
+  showPrompt("Renombrar proyecto", p.name, v => { if(v.trim()){ p.name = v.trim(); markDirty(); } });
+}
+function setProjColor(id, c){
+  const p = projById(id); if(!p) return;
+  p.color = c; markDirty();
+}
+
+/* M1: armar mi día */
+function setDay(claude){
+  const e = parseInt($("energySlider").value, 10);
+  D.day = { date: todayStr(), energy: e, mode: e <= 2 ? "minimo" : "normal", anchor: null, closed: false };
+  if(claude) toast('Listo. Dile a Claude: "arma mi día"');
+  else if(e <= 2) toast("Día de mínimos activado. Con poco basta hoy.");
+  markDirty();
+}
+function rotateHoy(id){
+  const idx = D.tasks.findIndex(t => t.id === id); if(idx < 0) return;
+  const t = D.tasks.splice(idx, 1)[0];
+  let last = -1; D.tasks.forEach((x,i) => { if(x.status === "hoy") last = i; });
+  D.tasks.splice(last + 1, 0, t);
+  markDirty();
+}
+
+/* cerrar día */
+function celebrationLine(done){
+  const unplanned = done.filter(t => t.note === "no planeada").length;
+  const old = done.find(t => daysCount(t.created_at) >= 7);
+  if(old) return `Cerraste algo que llevaba ${daysCount(old.created_at)} días abierto.`;
+  if(unplanned) return `Hiciste ${unplanned} cosa${unplanned > 1 ? "s" : ""} que ni estaba${unplanned > 1 ? "n" : ""} en el plan.`;
+  if(D.day && D.day.energy != null && D.day.energy <= 3 && done.length) return "Con la pila que tenías, esto vale doble.";
+  return done.length ? `${done.length} cosa${done.length > 1 ? "s" : ""} menos en tu cabeza.` : "";
+}
+function addUnplanned(){
+  const el = $("unplannedInput"); const v = (el?.value || "").trim(); if(!v) return;
+  D.tasks.push({ id: uid("t"), title: v, status: "hecha", project_id: null, due: null, source: null, note: "no planeada", created_at: nowISO(), done_at: nowISO() });
+  markDirty(); openCloseDay();
+}
+function finishDay(){
+  const done = doneToday();
+  if(D.day) D.day.closed = true;
+  D.days = (D.days || []).filter(d => d.date !== todayStr());
+  D.days.push({ date: todayStr(), done: done.length,
+    planned: byStatus("hoy").length + done.filter(t => t.note !== "no planeada").length,
+    energy: D.day?.energy ?? null, unplanned: done.filter(t => t.note === "no planeada").map(t => t.title) });
+  closeModals(); markDirty();
+  toast("Día cerrado. Hasta mañana 👋");
+}
+function openCloseDay(){
+  const done = doneToday();
+  const pend = byStatus("hoy");
+  const celebr = celebrationLine(done);
+  $("closeDayDone").innerHTML = `<div style="font-size:18px; font-weight:700; color:var(--green); margin-bottom:8px;">
+    ${done.length ? "Hoy completaste " + done.length + (pend.length ? " de " + (done.length + pend.length) : "") + " 🎉" : "Hoy fue un día difícil, y está bien."}</div>
+    ${celebr ? `<div style="color:var(--green); font-size:15px; margin-bottom:8px;">${celebr}</div>` : ""}
+    ${done.map(t => `<div style="color:var(--ink-soft);">✓ ${esc(t.title)}${t.note === "no planeada" ? ' <span style="font-size:12.5px;">(no planeada)</span>' : ""}</div>`).join("")}`;
+  $("closeDayPending").innerHTML = pend.length ? `
+    <div style="font-weight:700; margin-bottom:8px;">Lo que quedó — tú decides (nada se arrastra solo):</div>
+    ${pend.map(t => `<div class="inbox-item"><div class="txt">${esc(t.title)}</div>
+      <div class="inbox-actions">
+        <button class="btn btn-sm" onclick="moveTask('${t.id}','hoy');openCloseDay()">Queda mañana</button>
+        <button class="btn btn-sm" onclick="moveTask('${t.id}','siguiente');openCloseDay()">${ic("arrowR","sm")} En fila</button>
+        <button class="btn btn-sm" onclick="moveTask('${t.id}','despues');openCloseDay()">${ic("zzz","sm")} Soltar</button>
+      </div></div>`).join("")}` : "";
+  openModal("closeDayModal");
+}
+
+/* prompt modal genérico */
+let _promptCb = null;
+function showPrompt(title, value, cb){
+  $("promptTitle").textContent = title;
+  $("promptInput").value = value || "";
+  _promptCb = cb;
+  openModal("promptModal"); $("promptInput").focus();
+}
+$("promptOk").addEventListener("click", () => { const v = $("promptInput").value; closeModals(); if(_promptCb) _promptCb(v); });
+$("promptInput").addEventListener("keydown", e => { if(e.key === "Enter") $("promptOk").click(); });
+
+/* ================= SYNC MÓVIL (GitHub) ================= */
+let gh = null, ghSha = null, ghTimer = null, cloudMode = false, cloudBusy = false;
+try{ gh = JSON.parse(localStorage.getItem("miDia.gh") || "null"); }catch(e){}
+const b64e = s => btoa(unescape(encodeURIComponent(s)));
+const b64d = s => decodeURIComponent(escape(atob(s)));
+const ghUrl = () => `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${gh.path || "data.json"}`;
+const ghHead = () => ({ Authorization: "Bearer " + gh.token, Accept: "application/vnd.github+json" });
+async function ghGet(){
+  const r = await fetch(ghUrl(), { headers: ghHead() });
+  if(r.status === 404) return null;
+  if(!r.ok) throw new Error("GitHub " + r.status);
+  const j = await r.json(); ghSha = j.sha;
+  return JSON.parse(b64d(String(j.content).replace(/\n/g, "")));
+}
+async function ghPut(obj){
+  try{ const r0 = await fetch(ghUrl(), { headers: ghHead() }); if(r0.ok) ghSha = (await r0.json()).sha; else if(r0.status === 404) ghSha = null; }catch(e){}
+  const body = { message: "Mi Día sync " + nowISO(), content: b64e(JSON.stringify(obj, null, 2)) };
+  if(ghSha) body.sha = ghSha;
+  const r = await fetch(ghUrl(), { method: "PUT", headers: ghHead(), body: JSON.stringify(body) });
+  if(!r.ok) throw new Error("GitHub " + r.status);
+  ghSha = (await r.json()).content.sha;
+}
+function mergeRemote(rem){
+  if(!rem) return 0;
+  let n = 0;
+  const addNew = (loc, remArr) => (remArr || []).forEach(ri => { if(!loc.some(li => li.id === ri.id)){ loc.push(ri); n++; } });
+  addNew(D.inbox, rem.inbox); addNew(D.notes, rem.notes); addNew(D.tasks, rem.tasks); addNew(D.projects, rem.projects);
+  (rem.tasks || []).forEach(rt => {
+    const lt = D.tasks.find(x => x.id === rt.id);
+    if(lt && rt.status === "hecha" && lt.status !== "hecha"){ lt.status = "hecha"; lt.done_at = rt.done_at || nowISO(); n++; }
+  });
+  return n;
+}
+async function ghPull(){
+  if(!gh) return openGhModal();
+  toast("Trayendo del cel…");
+  try{
+    const rem = await ghGet();
+    const n = mergeRemote(rem);
+    if(n) markDirty(); else renderAll();
+    toast(n ? n + " cambio" + (n > 1 ? "s" : "") + " traído" + (n > 1 ? "s" : "") + " ✓" : "Nada nuevo en el cel");
+  }catch(e){ toast("No pude conectar con GitHub — revisa el token"); }
+}
+async function ghPush(){
+  if(!gh) return openGhModal();
+  toast("Enviando al cel…");
+  try{ await ghPut(D); toast("Enviado ✓ — tu cel ya tiene esto"); }
+  catch(e){ toast("No pude enviar — revisa el token"); }
+}
+function cloudSave(){
+  clearTimeout(ghTimer);
+  cloudBusy = true; renderSaveStatus();
+  ghTimer = setTimeout(async () => {
+    try{ await ghPut(D); dirty = false; saveTime = new Date().toTimeString().slice(0,5); }
+    catch(e){ toast("Sin conexión — se reintenta con el próximo cambio"); }
+    cloudBusy = false; renderSaveStatus();
+  }, 1500);
+}
+function openGhModal(){
+  if(gh){ $("ghOwner").value = gh.owner; $("ghRepo").value = gh.repo; $("ghToken").value = gh.token; }
+  $("ghDisconnectBtn").style.display = gh ? "" : "none";
+  openModal("ghModal");
+}
+function saveGh(){
+  const owner = $("ghOwner").value.trim(), repo = $("ghRepo").value.trim(), token = $("ghToken").value.trim();
+  if(!owner || !repo || !token){ toast("Faltan datos"); return; }
+  gh = { owner, repo, token, path: "data.json" };
+  try{ localStorage.setItem("miDia.gh", JSON.stringify(gh)); }catch(e){}
+  closeModals(); toast("Sync configurado ✓");
+  if(cloudMode || !D) location.reload(); else renderSaveStatus();
+}
+function ghDisconnect(){
+  gh = null;
+  try{ localStorage.removeItem("miDia.gh"); }catch(e){}
+  closeModals(); toast("Sync desconectado");
+  if(!cloudMode) renderSaveStatus();
+}
+
+/* ================= PERSISTENCIA ================= */
+function serialize(){ return "window.DATA = " + JSON.stringify(D, null, 2) + ";\n"; }
+function renderSaveStatus(){
+  const s = $("saveStatus"), a = $("saveActions");
+  if(cloudMode){
+    if(cloudBusy || dirty) s.innerHTML = `<span class="save-dot dirty"></span><span class="txt">Sincronizando…</span>`;
+    else s.innerHTML = `<span class="save-dot ok"></span><span class="txt">Nube ✓ ${saveTime || ""}</span>`;
+    a.innerHTML = `<button class="sb-mini-btn" onclick="ghPull()">${ic("refresh","sm")}<span class="lbl">Traer cambios</span></button>
+      <button class="sb-mini-btn" onclick="openGhModal()">${ic("more","sm")}<span class="lbl">Configurar nube</span></button>`;
+    return;
+  }
+  const ghBtns = gh
+    ? `<button class="sb-mini-btn" onclick="ghPush()">${ic("arrowUp","sm")}<span class="lbl">Enviar al cel</span></button>
+       <button class="sb-mini-btn" onclick="ghPull()">${ic("refresh","sm")}<span class="lbl">Traer del cel</span></button>`
+    : `<button class="sb-mini-btn" onclick="openGhModal()">${ic("arrowR","sm")}<span class="lbl">Usar en el cel</span></button>`;
+  if(fileHandle && !dirty){
+    s.innerHTML = `<span class="save-dot ok"></span><span class="txt">Guardado ✓ ${saveTime || ""}</span>`;
+    a.innerHTML = ghBtns;
+  } else if(dirty){
+    s.innerHTML = `<span class="save-dot dirty"></span><span class="txt">Cambios sin guardar</span>`;
+    a.innerHTML = `<button class="sb-save-btn" onclick="connectFile()">${ic("save","sm")}<span class="lbl">Guardar</span></button>
+      <button class="sb-mini-btn" onclick="fallbackDownload()">${ic("arrowR","sm")}<span class="lbl">Descargar copia</span></button>` + ghBtns;
+  } else {
+    s.innerHTML = `<span class="save-dot"></span><span class="txt">Sin conexión a data.js</span>`;
+    a.innerHTML = `<button class="sb-mini-btn" onclick="connectFile()">${ic("save","sm")}<span class="lbl">Conectar archivo</span></button>` + ghBtns;
+  }
+}
+async function connectFile(){
+  try{
+    if(!window.showOpenFilePicker){ fallbackDownload(); return; }
+    const [h] = await window.showOpenFilePicker({
+      types: [{ description: "data.js", accept: { "text/javascript": [".js"] } }],
+      multiple: false
+    });
+    fileHandle = h;
+    await saveToFile();
+  }catch(e){ /* cancelado */ }
+}
+async function saveToFile(){
+  if(!fileHandle) return;
+  try{
+    const w = await fileHandle.createWritable();
+    await w.write(serialize());
+    await w.close();
+    dirty = false;
+    saveTime = new Date().toTimeString().slice(0,5);
+    renderSaveStatus();
+  }catch(e){
+    toast("No pude guardar — usa Descargar copia");
+    renderSaveStatus();
+  }
+}
+function fallbackDownload(){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([serialize()], { type: "text/javascript" }));
+  a.download = "data.js";
+  a.click();
+  toast("Descargado — reemplaza data.js en la carpeta");
+}
+
+/* ================= UI PLUMBING ================= */
+function openModal(id){ $("overlay").classList.add("open"); $(id).classList.add("open"); }
+function closeModals(){
+  document.querySelectorAll(".modal.open").forEach(m => m.classList.remove("open"));
+  $("overlay").classList.remove("open");
+}
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+$("captureInput").addEventListener("keydown", e => { if(e.key === "Enter") capture(); });
+$("quickNoteBtn").addEventListener("click", () => openNoteModal());
+$("saveNoteBtn").addEventListener("click", saveQuickNote);
+$("noteText").addEventListener("keydown", e => { if(e.key === "Enter" && (e.ctrlKey || e.metaKey)) saveQuickNote(); });
+$("saveProjBtn").addEventListener("click", saveNewProj);
+$("closeDayBtn").addEventListener("click", openCloseDay);
+$("themeBtn").addEventListener("click", toggleTheme);
+$("overlay").addEventListener("click", closeModals);
+document.querySelectorAll("[data-close]").forEach(b => { b.innerHTML = b.classList.contains("close-x") ? ic("x") : b.innerHTML; b.addEventListener("click", closeModals); });
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){ closeModals(); closeMenu(); return; }
+  if(document.querySelector(".modal.open")) return;
+  const tag = document.activeElement?.tagName;
+  if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+  if(e.key === "/" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")){ e.preventDefault(); $("captureInput").focus(); return; }
+  if(e.key.toLowerCase() === "n"){ e.preventDefault(); openNoteModal(); return; }
+  const map = {"1":"hoy","2":"inbox","3":"proyectos","4":"notas","5":"esperando","6":"despues"};
+  if(map[e.key]) setView(map[e.key]);
+});
+
+/* iconos estáticos */
+$("icCloseday").innerHTML = ic("moon","sm");
+$("icRefresh").innerHTML = ic("refresh","sm");
+$("icNoteBtn").innerHTML = ic("note","sm");
+
+/* ================= INIT ================= */
+initTheme();
+function normalizeD(){
+  D.inbox = D.inbox || []; D.tasks = D.tasks || []; D.projects = D.projects || []; D.notes = D.notes || [];
+  D.settings = D.settings || { modules: { armar_dia: false, micro_pasos: false, reaparicion: false } };
+  D.day = D.day || null; D.days = D.days || [];
+  D.recurrences = D.recurrences || [];
+}
+/* recurrentes: materializa en HOY lo que toca (una vez al día, determinista) */
+function materializeRecurrences(){
+  const today = todayStr();
+  let changed = false;
+  D.recurrences.forEach(r => {
+    if(r.paused) return;
+    if(!r.next_due || r.next_due <= today){
+      const open = D.tasks.some(t => t.source?.type === "rutina" && t.source.ref === r.id && t.status !== "hecha");
+      const doneHoy = D.tasks.some(t => t.source?.type === "rutina" && t.source.ref === r.id && t.status === "hecha" && t.done_at && dateOf(t.done_at) === today);
+      if(!open && !doneHoy){
+        D.tasks.unshift({ id: uid("t"), title: r.title, status: "hoy", project_id: null, due: null,
+          source: { type: "rutina", ref: r.id }, note: null, area: r.area || null, kind: r.kind || "cuidado",
+          created_at: nowISO(), done_at: null });
+        r.next_due = today;
+        changed = true;
+      }
+    }
+  });
+  return changed;
+}
+function restorePrefs(){
+  try{
+    const sv = localStorage.getItem("miDia.activeView");
+    if(sv && ["hoy","inbox","proyectos","notas","esperando","despues"].includes(sv)) view = sv;
+    const sp = localStorage.getItem("miDia.selectedProject");
+    if(sp && projById(sp)) selProj = sp;
+  }catch(e){}
+}
+(async function init(){
+  if(window.DATA && window.DATA.tasks){
+    D = window.DATA; normalizeD();
+    if(materializeRecurrences()){ dirty = true; D.updated_at = nowISO(); D.updated_by = "app"; }
+    restorePrefs(); renderAll(); return;
+  }
+  if(gh){
+    cloudMode = true;
+    try{
+      const rem = await ghGet();
+      D = rem || { version: 2, updated_at: nowISO(), updated_by: "movil", inbox: [], tasks: [], projects: [], notes: [] };
+      normalizeD();
+      if(materializeRecurrences()) cloudSave();
+      restorePrefs(); renderAll();
+      if(!rem) toast("Nube vacía — en tu compu usa 'Enviar al cel' primero");
+      return;
+    }catch(e){
+      $("dataError").innerHTML = `⚠️ No pude cargar tus datos de GitHub (¿token vencido o sin internet?). <button class="btn btn-sm" onclick="openGhModal()" style="margin-left:8px;">Revisar configuración</button>`;
+      $("dataError").style.display = "block"; return;
+    }
+  }
+  $("dataError").innerHTML = `⚠️ No se pudieron cargar los datos. Si estás en tu compu: data.js está dañado o ausente — pídele a Claude "restaura mi data.js desde el último backup". Si estás en el celular: <button class="btn btn-sm" onclick="openGhModal()" style="margin-left:8px;">Configurar la nube</button>`;
+  $("dataError").style.display = "block";
+})();
+</script>
+</body>
+</html>
