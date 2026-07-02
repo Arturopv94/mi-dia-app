@@ -423,6 +423,25 @@ select.mini{border:1px solid var(--line); border-radius:var(--r-sm); padding:3px
   <div id="moreSheetBody" style="display:flex;flex-direction:column;gap:8px;"></div>
 </div>
 
+<div class="modal" id="rutinaModal">
+  <button class="close-x" data-close></button>
+  <h3 id="rutinaTitle">Rutina</h3>
+  <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:14px;">Las rutinas aparecen solas en HOY cuando les toca — tú no tienes que acordarte. Y no pasa nada si un día no sale: vuelve a aparecer, sin regaños.</p>
+  <div class="field"><label>¿Qué hay que hacer?</label><input type="text" class="field-input" id="rutTitle" placeholder="Darle su medicina al perro 💊"></div>
+  <div class="field"><label>¿Cada cuántos días? (1 = diario, 7 = semanal)</label><input type="number" class="field-input" id="rutEvery" min="1" value="1"></div>
+  <div class="field"><label>¿Hasta cuándo? — vacío = para siempre. Puedes extenderla o acortarla cuando quieras</label><input type="date" class="field-input" id="rutUntil"></div>
+  <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap; gap:8px;">
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-ghost" id="rutPauseBtn"></button>
+      <button class="btn btn-ghost" id="rutDeleteBtn" style="color:var(--red);">Borrar</button>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-accent" id="rutSaveBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="ghModal">
   <button class="close-x" data-close></button>
   <h3>Usar Mi Día en el celular</h3>
@@ -600,7 +619,8 @@ function taskChips(t, opts={}){
   }
   if(t.source?.type === "rutina"){
     const r = D.recurrences.find(x => x.id === t.source.ref);
-    chips.push(`<span class="chip">🔁 ${r && r.every_days > 1 ? "cada " + r.every_days + " días" : "diario"}</span>`);
+    const freq = r && r.every_days > 1 ? "cada " + r.every_days + " días" : "diario";
+    chips.push(`<span class="chip">🔁 ${freq}${r && r.until ? " · hasta " + esc(r.until) : ""}</span>`);
   } else if(t.source && t.source.ref) chips.push(`<span class="chip">${esc(t.source.type)}: ${esc(t.source.ref)}</span>`);
   if(opts.waitAge){
     const dc = daysCount(t.created_at);
@@ -663,7 +683,12 @@ function taskMenu(ev, id){
   const projBtns = D.projects.filter(p => p.status !== "cerrado").map(p =>
     `<button onclick="taskAssign('${id}','${p.id}')">${t.project_id === p.id ? "✓ " : ""}<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${projColor(p)};"></span> ${esc(p.name)}</button>`).join("");
   const waitBtn = t.status === "esperando" ? `<button onclick="editWaiting('${id}')">${ic("clock","sm")} ¿A quién esperas?${t.waiting_on ? " (" + esc(t.waiting_on) + ")" : ""}</button>` : "";
+  const rutBtn = t.source?.type === "rutina"
+    ? `<button onclick="openRutinaModal('${t.source.ref}')">🔁 Editar rutina</button>`
+    : `<button onclick="openRutinaModal(null,'${id}')">🔁 Repetir esta tarea…</button>`;
   const html = `<button onclick="editTask('${id}')">${ic("edit","sm")} Editar texto</button>`
+    + `<button onclick="editTaskNote('${id}')">${ic("note","sm")} Nota de la tarea${t.note ? " ✓" : ""}</button>`
+    + rutBtn
     + waitBtn
     + opts.map(([st,icn,lb]) => `<button onclick="moveTask('${id}','${st}')">${ic(icn,"sm")} ${lb}</button>`).join("")
     + projBtns
@@ -1086,6 +1111,60 @@ function taskAssign(id, pid){
   t.project_id = t.project_id === pid ? null : pid; markDirty();
   toast(t.project_id ? "Tarea asignada al proyecto ✓" : "Tarea sin proyecto");
 }
+function editTaskNote(id){
+  const t = D.tasks.find(x => x.id === id); if(!t) return;
+  showPrompt("Nota de la tarea (contexto, detalles, lo que tu yo del futuro necesita saber)", t.note || "", v => { t.note = v.trim() || null; markDirty(); });
+}
+
+/* ---- rutinas (crear / editar / pausar / borrar) ---- */
+let _rutinaId = null, _rutinaFromTask = null;
+function openRutinaModal(recId, fromTaskId){
+  _rutinaId = recId || null; _rutinaFromTask = fromTaskId || null;
+  const r = _rutinaId ? D.recurrences.find(x => x.id === _rutinaId) : null;
+  const ft = _rutinaFromTask ? D.tasks.find(x => x.id === _rutinaFromTask) : null;
+  $("rutinaTitle").textContent = r ? "Editar rutina" : "Nueva rutina";
+  $("rutTitle").value = r ? r.title : (ft ? ft.title : "");
+  $("rutEvery").value = r ? (r.every_days || 1) : 1;
+  $("rutUntil").value = r ? (r.until || "") : "";
+  $("rutPauseBtn").style.display = r ? "" : "none";
+  $("rutDeleteBtn").style.display = r ? "" : "none";
+  if(r) $("rutPauseBtn").textContent = r.paused ? "▶ Reanudar" : "⏸ Pausar";
+  openModal("rutinaModal");
+  if(!r) $("rutTitle").focus();
+}
+function saveRutina(){
+  const title = $("rutTitle").value.trim(); if(!title){ toast("Ponle nombre a la rutina"); return; }
+  const every = Math.max(1, parseInt($("rutEvery").value, 10) || 1);
+  const until = $("rutUntil").value || null;
+  if(_rutinaId){
+    const r = D.recurrences.find(x => x.id === _rutinaId); if(!r) return;
+    r.title = title; r.every_days = every; r.until = until;
+    D.tasks.forEach(t => { if(t.source?.type === "rutina" && t.source.ref === r.id && t.status !== "hecha") t.title = title; });
+    closeModals(); toast("Rutina actualizada ✓");
+  } else {
+    const r = { id: uid("r"), title, every_days: every, until, area: area !== "todo" ? area : null, kind: null, next_due: todayStr(), paused: false };
+    if(_rutinaFromTask){
+      const t = D.tasks.find(x => x.id === _rutinaFromTask);
+      if(t){ r.area = t.area || r.area; t.source = { type: "rutina", ref: r.id }; }
+    }
+    D.recurrences.push(r);
+    closeModals(); toast("Rutina creada 🔁 — aparecerá sola cuando toque");
+  }
+  materializeRecurrences(); markDirty();
+}
+function toggleRutinaPause(){
+  const r = D.recurrences.find(x => x.id === _rutinaId); if(!r) return;
+  r.paused = !r.paused;
+  if(r.paused) D.tasks = D.tasks.filter(t => !(t.source?.type === "rutina" && t.source.ref === r.id && t.status !== "hecha"));
+  closeModals(); toast(r.paused ? "Rutina en pausa 😴 — sin culpa" : "Rutina activa de nuevo");
+  materializeRecurrences(); markDirty();
+}
+function deleteRutina(){
+  if(!confirm("¿Borrar esta rutina? Lo que ya hiciste se queda en tu historial.")) return;
+  D.tasks = D.tasks.filter(t => !(t.source?.type === "rutina" && t.source.ref === _rutinaId && t.status !== "hecha"));
+  D.recurrences = D.recurrences.filter(x => x.id !== _rutinaId);
+  closeModals(); markDirty();
+}
 function dropTask(id){
   if(!confirm("¿Borrar esta tarea? No se puede deshacer.")) return;
   D.tasks = D.tasks.filter(x => x.id !== id); markDirty();
@@ -1412,6 +1491,9 @@ $("saveNoteBtn").addEventListener("click", saveQuickNote);
 $("noteText").addEventListener("keydown", e => { if(e.key === "Enter" && (e.ctrlKey || e.metaKey)) saveQuickNote(); });
 $("saveProjBtn").addEventListener("click", saveNewProj);
 $("closeDayBtn").addEventListener("click", openCloseDay);
+$("rutSaveBtn").addEventListener("click", saveRutina);
+$("rutPauseBtn").addEventListener("click", toggleRutinaPause);
+$("rutDeleteBtn").addEventListener("click", deleteRutina);
 $("themeBtn").addEventListener("click", toggleTheme);
 $("overlay").addEventListener("click", closeModals);
 document.querySelectorAll("[data-close]").forEach(b => { b.innerHTML = b.classList.contains("close-x") ? ic("x") : b.innerHTML; b.addEventListener("click", closeModals); });
@@ -1445,6 +1527,7 @@ function materializeRecurrences(){
   let changed = false;
   D.recurrences.forEach(r => {
     if(r.paused) return;
+    if(r.until && r.until < today) return;
     if(!r.next_due || r.next_due <= today){
       const open = D.tasks.some(t => t.source?.type === "rutina" && t.source.ref === r.id && t.status !== "hecha");
       const doneHoy = D.tasks.some(t => t.source?.type === "rutina" && t.source.ref === r.id && t.status === "hecha" && t.done_at && dateOf(t.done_at) === today);
