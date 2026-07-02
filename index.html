@@ -182,6 +182,11 @@ details[open] > summary .chev{transform:rotate(90deg);}
 .ev.next .ev-time{color:var(--accent);}
 .focus-proj{cursor:pointer; transition:border-color 150ms, box-shadow 150ms;}
 .focus-proj:hover{border-color:var(--line-strong); box-shadow:var(--shadow-1);}
+.day-chip{border:2px solid var(--line); background:var(--surface); color:var(--ink-soft); border-radius:999px; width:36px; height:36px; font-size:13px; font-weight:800; cursor:pointer; transition:all 150ms;}
+.day-chip.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+.sched-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14.5px;}
+.sched-row .ev-time{min-width:44px;}
+.sched-row .days-mini{font-size:11.5px; color:var(--ink-faint); font-weight:700; letter-spacing:1px;}
 .chk.done{border-color:var(--green); background:var(--green-soft); color:var(--green);}
 .task-body{flex:1; min-width:0;}
 .now-label{font-size:12px; font-weight:800; color:var(--accent); letter-spacing:1.2px; margin-bottom:3px;}
@@ -196,6 +201,8 @@ details[open] > summary .chev{transform:rotate(90deg);}
 .chip-wait.stale{background:var(--amber-soft); color:var(--amber); font-weight:700;}
 .more-btn{width:36px;height:36px;border:none;background:transparent;border-radius:var(--r-sm);cursor:pointer;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;}
 .more-btn:hover{background:var(--surface-2); color:var(--ink);}
+.icon-btn{width:32px;height:32px;border:none;background:transparent;border-radius:var(--r-sm);cursor:pointer;color:var(--ink-faint);display:flex;align-items:center;justify-content:center;padding:0;}
+.icon-btn:hover{background:var(--surface-2); color:var(--ink);}
 
 /* menú contextual */
 .menu{
@@ -421,6 +428,22 @@ select.mini{border:1px solid var(--line); border-radius:var(--r-sm); padding:3px
   <button class="close-x" data-close></button>
   <h3>Más</h3>
   <div id="moreSheetBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
+<div class="modal" id="schedModal">
+  <button class="close-x" data-close></button>
+  <h3>Mi horario</h3>
+  <p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:14px;">Las anclas de tu día a día: comidas, clases, lo que solo vive en tu mente. Aparecen solas en "Tu día" para darle forma a tu jornada — sin palomas ni culpa si un día no sale.</p>
+  <div class="field" style="display:flex; gap:8px;">
+    <input type="time" class="field-input" id="schTime" style="width:130px; min-width:110px;">
+    <input type="text" class="field-input" id="schTitle" placeholder="Comida 1 🍳 · Clase de barre 🩰 · …">
+  </div>
+  <div class="field"><label>¿Qué días?</label><div id="schDays" style="display:flex; gap:6px; flex-wrap:wrap;"></div></div>
+  <div style="display:flex; justify-content:flex-end; gap:8px;">
+    <button class="btn btn-ghost" id="schCancelBtn" style="display:none;">Cancelar edición</button>
+    <button class="btn btn-accent" id="schAddBtn">Agregar</button>
+  </div>
+  <div id="schedList" style="margin-top:16px;"></div>
 </div>
 
 <div class="modal" id="rutinaModal">
@@ -774,31 +797,39 @@ function vHoy(){
     </div>
     <div class="hero-line">${heroLine}</div>
   </div>`;
-  /* ---- panel lateral: Tu día + En foco ---- */
+  /* ---- panel lateral: Tu día (horario personal + juntas) + En foco ---- */
   let side = "";
-  if(dayFresh){
-    const evs = D.day.events || [];
+  {
+    const wd = new Date().getDay();
+    const sched = (D.schedule || []).filter(s => (s.days || []).includes(wd)).filter(inArea)
+      .map(s => ({ time: s.time, title: s.title }));
+    const evsCal = (dayFresh ? (D.day.events || []) : []).map(e => ({ time: e.time, title: e.title, cal: true }));
+    const items = [...sched, ...evsCal].sort((a,b) => String(a.time).localeCompare(String(b.time)));
     const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
     const evMin = e => { const [hh,mm] = String(e.time||"0:0").split(":").map(Number); return hh * 60 + (mm||0); };
-    const nextIdx = evs.findIndex(e => evMin(e) >= nowMin);
+    const nextIdx = items.findIndex(e => evMin(e) >= nowMin);
     side += `<div class="side-card">
       <div class="block-label" style="margin-bottom:8px;">Tu día</div>
-      ${evs.length ? evs.map((e,i) => {
+      ${items.length ? items.map((e,i) => {
         const past = evMin(e) < nowMin;
         const diff = evMin(e) - nowMin;
         const chip = i === nextIdx ? `<span class="chip" style="margin-left:auto;">${diff >= 60 ? "en ~" + Math.round(diff/60) + " h" : "en " + Math.max(diff,1) + " min"}</span>` : "";
         return `<div class="ev ${past ? "past" : ""} ${i === nextIdx ? "next" : ""}"><span class="ev-time">${esc(e.time)}</span><span>${esc(e.title)}</span>${chip}</div>`;
-      }).join("") : `<div style="font-size:14.5px; color:var(--ink-soft);">Sin juntas hoy — el día es tuyo. ✨</div>`}
+      }).join("") : `<div style="font-size:14.5px; color:var(--ink-soft);">${dayFresh ? "Sin juntas hoy — el día es tuyo. ✨" : "Aquí aparecerán tus anclas del día: comidas, clases, juntas…"}</div>`}
+      <button class="btn btn-sm btn-ghost" style="margin-top:8px;" onclick="openSchedModal()">${ic("edit","sm")} Mi horario</button>
     </div>`;
   }
-  let fp = (dayFresh && D.day.focus_project) ? projById(D.day.focus_project) : null;
+  let fp = D.focus_project ? projById(D.focus_project) : null;
+  if(!fp && dayFresh && D.day.focus_project) fp = projById(D.day.focus_project);
   if(!fp){ const t0 = hoy.find(t => t.project_id); fp = t0 ? projById(t0.project_id) : null; }
   if(!fp){ fp = D.projects.filter(p => p.status === "activo").filter(inArea).sort((a,b) => lastActivity(b).localeCompare(lastActivity(a)))[0] || null; }
-  if(fp){
-    side += `<div class="side-card focus-proj" onclick="selectProj('${fp.id}');setView('proyectos')">
-      <div class="block-label" style="margin-bottom:6px;">En foco</div>
-      <div class="proj-name"><span class="pdot" style="background:${projColor(fp)}"></span>${esc(fp.name)}</div>
-      ${fp.next_step ? `<div class="proj-next-line"><span class="arrow">➜</span><span>${esc(fp.next_step)}</span></div>` : ""}
+  if(fp || D.projects.some(p => p.status === "activo")){
+    side += `<div class="side-card focus-proj" ${fp ? `onclick="selectProj('${fp.id}');setView('proyectos')"` : ""}>
+      <div class="block-label" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">En foco
+        <button class="more-btn" style="width:28px;height:28px;" onclick="event.stopPropagation();focusMenu(event)" title="Elegir qué está en foco">${ic("more")}</button>
+      </div>
+      ${fp ? `<div class="proj-name"><span class="pdot" style="background:${projColor(fp)}"></span>${esc(fp.name)}</div>
+      ${fp.next_step ? `<div class="proj-next-line"><span class="arrow">➜</span><span>${esc(fp.next_step)}</span></div>` : ""}` : ""}
     </div>`;
   }
   return `<div class="content wide"><div class="hoy-grid">
@@ -1000,6 +1031,7 @@ function projMenu(ev, id){
     <button onclick="setProjArea('${id}','trabajo')">${p.area === "trabajo" ? "✓ " : ""}Ámbito: Trabajo</button>
     <button onclick="setProjArea('${id}','personal')">${p.area === "personal" ? "✓ " : ""}Ámbito: Personal</button>
     <div class="swatches">${swatches}</div>
+    ${p.status === "activo" ? `<button onclick="setFocus('${id}')">${D.focus_project === id ? "✓ " : ""}⭐ Poner en foco</button>` : ""}
     ${p.status === "activo"
       ? `<button onclick="projStatus('${id}','pausa')">${ic("pause","sm")} Pausar</button>`
       : `<button onclick="projStatus('${id}','activo')">${ic("play","sm")} Reactivar</button>`}
@@ -1114,6 +1146,82 @@ function taskAssign(id, pid){
 function editTaskNote(id){
   const t = D.tasks.find(x => x.id === id); if(!t) return;
   showPrompt("Nota de la tarea (contexto, detalles, lo que tu yo del futuro necesita saber)", t.note || "", v => { t.note = v.trim() || null; markDirty(); });
+}
+
+/* ---- Mi horario (anclas del día) ---- */
+const DIA_LETRA = ["D","L","M","X","J","V","S"];
+const DIA_ORDEN = [1,2,3,4,5,6,0];
+let _schedEditId = null, _schedDays = [0,1,2,3,4,5,6];
+function openSchedModal(){
+  _schedEditId = null; _schedDays = [0,1,2,3,4,5,6];
+  $("schTime").value = ""; $("schTitle").value = "";
+  $("schAddBtn").textContent = "Agregar"; $("schCancelBtn").style.display = "none";
+  renderSchedModal();
+  openModal("schedModal");
+}
+function renderSchedModal(){
+  $("schDays").innerHTML = DIA_ORDEN.map(d =>
+    `<button class="day-chip ${_schedDays.includes(d) ? "on" : ""}" onclick="toggleSchedDay(${d})">${DIA_LETRA[d]}</button>`).join("");
+  const rows = [...(D.schedule || [])].sort((a,b) => String(a.time).localeCompare(String(b.time)));
+  $("schedList").innerHTML = rows.length ? rows.map(s => {
+    const daysTxt = (s.days||[]).length === 7 ? "diario" : DIA_ORDEN.filter(d => (s.days||[]).includes(d)).map(d => DIA_LETRA[d]).join(" ");
+    return `<div class="sched-row">
+      <span class="ev-time">${esc(s.time)}</span>
+      <span style="flex:1;">${esc(s.title)}</span>
+      <span class="days-mini">${daysTxt}</span>
+      <button class="icon-btn" onclick="editSched('${s.id}')" title="Editar">${ic("edit","sm")}</button>
+      <button class="icon-btn" onclick="dropSched('${s.id}')" title="Quitar">${ic("trash","sm")}</button>
+    </div>`;
+  }).join("") : `<div class="empty" style="padding:12px;">Aún no tienes anclas. Prueba con tus comidas. 🍳</div>`;
+}
+function toggleSchedDay(d){
+  _schedDays = _schedDays.includes(d) ? _schedDays.filter(x => x !== d) : [..._schedDays, d];
+  renderSchedModal();
+}
+function editSched(id){
+  const s = (D.schedule||[]).find(x => x.id === id); if(!s) return;
+  _schedEditId = id; _schedDays = [...(s.days||[])];
+  $("schTime").value = s.time; $("schTitle").value = s.title;
+  $("schAddBtn").textContent = "Guardar cambios"; $("schCancelBtn").style.display = "";
+  renderSchedModal();
+}
+function saveSched(){
+  const time = $("schTime").value, title = $("schTitle").value.trim();
+  if(!time || !title){ toast("Ponle hora y nombre"); return; }
+  if(!_schedDays.length){ toast("Elige al menos un día"); return; }
+  if(_schedEditId){
+    const s = D.schedule.find(x => x.id === _schedEditId); if(!s) return;
+    s.time = time; s.title = title; s.days = [..._schedDays].sort();
+    toast("Ancla actualizada ✓");
+  } else {
+    D.schedule.push({ id: uid("s"), time, title, days: [..._schedDays].sort(), area: area !== "todo" ? area : null });
+    toast("Ancla agregada a tu día 🕐");
+  }
+  _schedEditId = null; _schedDays = [0,1,2,3,4,5,6];
+  $("schTime").value = ""; $("schTitle").value = "";
+  $("schAddBtn").textContent = "Agregar"; $("schCancelBtn").style.display = "none";
+  renderSchedModal(); markDirty();
+}
+function cancelSchedEdit(){
+  _schedEditId = null; _schedDays = [0,1,2,3,4,5,6];
+  $("schTime").value = ""; $("schTitle").value = "";
+  $("schAddBtn").textContent = "Agregar"; $("schCancelBtn").style.display = "none";
+  renderSchedModal();
+}
+function dropSched(id){
+  D.schedule = D.schedule.filter(x => x.id !== id);
+  renderSchedModal(); markDirty();
+}
+
+/* ---- En foco: selector manual ---- */
+function focusMenu(ev){
+  const projBtns = D.projects.filter(p => p.status === "activo").map(p =>
+    `<button onclick="setFocus('${p.id}')">${D.focus_project === p.id ? "✓ " : ""}<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${projColor(p)};"></span> ${esc(p.name)}</button>`).join("");
+  openCtxMenu(ev, `<button onclick="setFocus('')">${!D.focus_project ? "✓ " : ""}Automático (Claude o el más activo)</button>` + projBtns);
+}
+function setFocus(pid){
+  D.focus_project = pid || null; markDirty();
+  toast(pid ? "En foco fijado ⭐" : "En foco automático");
 }
 
 /* ---- rutinas (crear / editar / pausar / borrar) ---- */
@@ -1492,6 +1600,9 @@ $("noteText").addEventListener("keydown", e => { if(e.key === "Enter" && (e.ctrl
 $("saveProjBtn").addEventListener("click", saveNewProj);
 $("closeDayBtn").addEventListener("click", openCloseDay);
 $("rutSaveBtn").addEventListener("click", saveRutina);
+$("schAddBtn").addEventListener("click", saveSched);
+$("schCancelBtn").addEventListener("click", cancelSchedEdit);
+$("schTitle").addEventListener("keydown", e => { if(e.key === "Enter") saveSched(); });
 $("rutPauseBtn").addEventListener("click", toggleRutinaPause);
 $("rutDeleteBtn").addEventListener("click", deleteRutina);
 $("themeBtn").addEventListener("click", toggleTheme);
@@ -1520,6 +1631,8 @@ function normalizeD(){
   D.settings = D.settings || { modules: { armar_dia: false, micro_pasos: false, reaparicion: false } };
   D.day = D.day || null; D.days = D.days || [];
   D.recurrences = D.recurrences || [];
+  D.schedule = D.schedule || [];
+  if(D.focus_project === undefined) D.focus_project = null;
 }
 /* recurrentes: materializa en HOY lo que toca (una vez al día, determinista) */
 function materializeRecurrences(){
