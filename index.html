@@ -759,14 +759,14 @@ function vHoy(){
   if(mod && !dayFresh){
     top = `<div class="task now-card" style="display:block;margin-bottom:18px;">
       <div class="now-label">BUENOS DÍAS</div>
-      <div style="font-size:19px;font-weight:650;margin-bottom:12px;">¿Con cuánta pila amaneciste?</div>
-      <input type="range" id="energySlider" min="0" max="10" value="6" style="width:100%;accent-color:var(--accent);"
-        oninput="document.getElementById('energyVal').textContent=this.value">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-top:2px;"><span>poca (0–3)</span><span>normal (4–7)</span><span>con pila (8–10)</span></div>
-      <div id="energyVal" style="text-align:center;font-size:22px;font-weight:800;color:var(--accent);margin:4px 0 8px;">6</div>
+      <div style="font-size:19px;font-weight:650;margin-bottom:12px;">¿Cómo amaneciste?</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn btn-accent" onclick="setDay(true)">Que Claude arme mi día</button>
-        <button class="btn btn-ghost" onclick="setDay(false)">Lo armo yo</button>
+        <button class="btn" id="dwAgotado" style="flex:1;min-width:110px;justify-content:center;font-size:16px;" onclick="setDayWord('agotado')">😮‍💨 Agotado</button>
+        <button class="btn" id="dwNormal" style="flex:1;min-width:110px;justify-content:center;font-size:16px;" onclick="setDayWord('normal')">🙂 Normal</button>
+        <button class="btn" id="dwPila" style="flex:1;min-width:110px;justify-content:center;font-size:16px;" onclick="setDayWord('pila')">⚡ Con pila</button>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="skipDay()">Saltar — hoy no quiero pensar en eso</button>
       </div>
     </div>`;
   } else if(mod && dayFresh && D.day.mode === "ancla" && D.day.anchor){
@@ -1373,12 +1373,17 @@ function setProjColor(id, c){
   p.color = c; markDirty();
 }
 
-/* M1: armar mi día */
-function setDay(claude){
-  const e = parseInt($("energySlider").value, 10);
-  D.day = { date: todayStr(), energy: e, mode: e <= 2 ? "minimo" : "normal", anchor: null, closed: false };
-  if(claude) toast('Listo. Dile a Claude: "arma mi día"');
-  else if(e <= 2) toast("Día de mínimos activado. Con poco basta hoy.");
+/* M1: armar mi día — palabras, no números (el 0-10 dispara sobrepensamiento) */
+function setDayWord(w){
+  const map = { agotado: 2, normal: 6, pila: 9 };
+  D.day = { date: todayStr(), energy: map[w] ?? null, mode: w === "agotado" ? "minimo" : "normal", anchor: null, closed: false };
+  if(w === "agotado") toast("Día de mínimos: con poco basta hoy 💜");
+  else toast('Listo. Si quieres, dile a Claude: "arma mi día"');
+  markDirty();
+}
+function skipDay(){
+  D.day = { date: todayStr(), energy: null, mode: "normal", anchor: null, closed: false };
+  toast("Día normal, sin preguntas 👍");
   markDirty();
 }
 function rotateHoy(id){
